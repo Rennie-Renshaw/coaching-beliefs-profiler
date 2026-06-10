@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-const NEUTRAL = "#64748b";
+const NEUTRAL = "#64748b"; // v2
 const LETTERS = ["A","B","C","D"];
 const KEYS = ["ecological","gamesbased","cognitive","behaviourist"];
 const LABELS = { ecological:"Ecological / CLA", gamesbased:"Games-based", cognitive:"Cognitive", behaviourist:"Behaviourist" };
