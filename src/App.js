@@ -285,30 +285,9 @@ function makeReport(data){
 
   let h="<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'/><title>Coaching Beliefs Profile"+(name?" - "+name:"")+"</title><style>"+css+"</style></head><body><div class='wrap'>";
   h+="<div class='cover'><div class='ct'></div><div style='display:flex;align-items:center;gap:14px;margin-bottom:28px'><svg xmlns='http://www.w3.org/2000/svg' width='46' height='46' viewBox='0 0 100 100'><text x='4' y='70' font-family='Georgia,serif' font-style='italic' font-weight='900' font-size='72' fill='white'>cc</text><line x1='6' y1='84' x2='70' y2='84' stroke='#a8e063' stroke-width='6' stroke-linecap='round'/></svg><div><div style='font-size:10px;font-weight:800;color:#a8e063;letter-spacing:3px;text-transform:uppercase'>Constraints</div><div style='font-size:10px;font-weight:800;color:#fff;letter-spacing:3px;text-transform:uppercase'>Collective</div></div></div>";
-  h+="<div style='font-size:26px;font-weight:900;color:#fff;margin-bottom:4px'>Coaching Beliefs Profiler</div><div style='font-size:12px;color:#a8e063;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px'>Personal Report</div>";
-  h+="<div style='display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px'><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Coach</div><div style='font-size:15px;font-weight:700;color:#fff'>"+(name||"Anonymous")+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Date</div><div style='font-size:15px;font-weight:700;color:#fff'>"+date+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Dominant Belief</div><div style='font-size:15px;font-weight:700;color:"+C[bDom]+"'>"+LB[bDom]+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Practice Orientation</div><div style='font-size:15px;font-weight:700;color:"+C[pDom]+"'>"+LB[pDom]+"</div></div></div>";
-  h+="<div style='display:inline-flex;align-items:center;gap:8px;background:#222;border-radius:8px;padding:8px 14px'><div style='width:10px;height:10px;border-radius:50%;background:"+C[bDom]+"'></div><span style='font-size:13px;font-weight:700;color:#fff'>"+(aligned?"Aligned - "+LB[bDom]:"Beliefs: "+LB[bDom]+" / Practice: "+LB[pDom])+"</span></div></div>";
-  h+="<div class='sec'><div class='sh'><div class='sn'>1</div><div><div class='st'>"+ofNameTitle+" Coaching Beliefs Profile</div><div class='ss'>How your beliefs and practice map across the four orientations</div></div></div>";
-  h+="<p style='font-size:14px;color:#f8fafc;line-height:1.8;margin-bottom:6px'><strong style='color:"+C[bDom]+"'>"+byName+"your dominant belief orientation is "+LB[bDom]+"</strong>, with <strong style='color:"+C[bSecond]+"'>"+LB[bSecond]+"</strong> as your second preference.</p>";
-  h+="<p style='font-size:14px;color:#f8fafc;line-height:1.8;margin-bottom:20px'>In practice, <strong style='color:"+C[pDom]+"'>"+LB[pDom]+"</strong> is your dominant orientation"+(pDom!==bDom?" — which differs from your beliefs, a gap worth exploring.":" — consistent with your belief profile.")+"</p>";
-  h+="<p style='font-size:13px;color:#cbd5e1;line-height:1.75;margin-bottom:18px'>The diagrams below show the shape of "+ofName+" beliefs and practice. The larger each petal, the more strongly you scored toward that orientation.</p>";
-  h+="<div class='pr'><div class='pb'><div class='pl'>How I See It - Beliefs</div>"+bSVG+"<div class='pn' style='color:"+C[bDom]+"'>"+LB[bDom]+"</div></div><div class='pb'><div class='pl'>How I Do It - Practice</div>"+pSVG+"<div class='pn' style='color:"+C[pDom]+"'>"+LB[pDom]+"</div></div></div>";
-  h+="<div class='sr'><div class='card'><div class='cl'>Belief Scores</div>"+KS.map(k=>sbar(k,bRaw[k]||0)).join("")+"</div><div class='card'><div class='cl'>Practice Scores</div>"+KS.map(k=>sbar(k,pRaw[k]||0)).join("")+"</div></div></div><div class='dv'></div>";
-  h+="<div class='sec'><div class='sh'><div class='sn'>2</div><div><div class='st'>How "+ofNameTitle+" Sees the World of Skill Learning</div><div class='ss'>Unpacking what your belief profile means</div></div></div>";
-  h+="<div class='card'><div class='cl'>Summary</div><p>"+S1[bDom].charAt(0).toUpperCase()+S1[bDom].slice(1)+"</p></div>";
-  [bDom,...KS.filter(k=>k!==bDom)].forEach(k=>{h+=ocard(k,bRaw[k]||0,k===bDom,k===bSecond);});
-  h+="</div><div class='dv'></div>";
-  h+="<div class='sec'><div class='sh'><div class='sn'>3</div><div><div class='st'>How "+ofNameTitle+" Coaches in Practice</div><div class='ss'>Unpacking what your practice profile means</div></div></div>";
-  h+="<div class='card'><div class='cl'>Summary</div><p>"+S2[pDom].charAt(0).toUpperCase()+S2[pDom].slice(1)+"</p></div>";
-  [pDom,...KS.filter(k=>k!==pDom)].forEach(k=>{h+=ocard(k,pRaw[k]||0,k===pDom,k===pSecond);});
-  h+="</div><div class='dv'></div>";
-  h+="<div class='sec'><div class='sh'><div class='sn'>4</div><div><div class='st'>Beliefs-Practice Alignment</div><div class='ss'>Where "+ofName+" beliefs and practice align and where they diverge</div></div></div>";
-  h+=aligned?"<div class='ag'>"+byName+"your belief and practice orientations are aligned within a "+LB[bDom]+" framework.</div>":"<div class='aw'>"+byName+"a beliefs-practice gap has been detected. Your beliefs lean toward "+LB[bDom]+" while your practice leans toward "+LB[pDom]+".</div>";
-  h+=sk.map(k=>gbar(k,bRaw[k]||0,pRaw[k]||0)).join("");
-  h+="<div class='card' style='margin-top:12px'><div class='cl'>Interpretation</div><p>"+interp+"</p></div></div><div class='dv'></div>";
-  h+="<div class='sec'><div class='sh'><div class='sn'>5</div><div><div class='st'>Areas for Development</div><div class='ss'>Specific opportunities based on "+ofName+" profile</div></div></div>";
-  h+=devAreas.map(da=>"<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid "+da.color+"'><div style='font-size:14px;font-weight:800;color:"+da.color+";margin-bottom:6px'>"+da.title+"</div><div style='font-size:13px;color:#e2e8f0;line-height:1.7'>"+da.body+"</div></div>").join("");
-  h+="</div><div class='dv'></div>";
+  h+="<div style='font-size:26px;font-weight:900;color:#fff;margin-bottom:4px'>Coaching Beliefs Profiler</div><div style='font-size:12px;color:#a8e063;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px'>Personal Profile</div>";
+  h+="<div style='display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px'><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Coach</div><div style='font-size:15px;font-weight:700;color:#fff'>"+(name||"Anonymous")+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Date</div><div style='font-size:15px;font-weight:700;color:#fff'>"+date+"</div></div></div>";
+  h+="<div style='background:#1e293b;border-radius:10px;padding:12px 16px;border-left:3px solid #a8e063'><p style='font-size:13px;color:#e2e8f0;line-height:1.7;margin:0'>This profile explored the relationship between your beliefs about skill learning and how those beliefs show up in your coaching.</p></div></div>";
   const orientHTML=[
     {key:"behaviourist",color:"#ef4444",icon:"🔁",label:"Behaviourist / Traditional",short:"Skill is built through repetition and reinforcement. The coach demonstrates correct technique, corrects errors quickly, and drills movement until it becomes automatic."},
     {key:"cognitive",color:"#3b82f6",icon:"🧠",label:"Cognitive / Information Processing",short:"Skill is a mental blueprint stored in the brain. The coach helps athletes build accurate mental models through instruction, explanation, and scenario-based practice."},
@@ -322,7 +301,31 @@ function makeReport(data){
   h+="<div class='sec'><div class='sh'><div class='sn'>7</div><div><div class='st'>Where Did You Think You Sat?</div><div class='ss'>A reflective prompt now that you have seen the orientations</div></div></div>";
   h+="<div class='card' style='margin-bottom:12px'><div class='cl'>Before you read this report</div><p>Before you completed this reflection, you probably had some sense of what kind of coach you are. Now that you have seen the four orientations and your profile, take a moment to consider the following prompts.</p></div>";
   h+="<ul class='ql'><li>Before reading this report, which of the four orientations did you think best described your coaching, or did you not recognise yourself in any of them?</li><li>Does your profile match your instinct? If it does, what does that tell you? If it does not, what might explain the difference?</li><li>Many coaches describe themselves as pragmatic and not aligned with any particular theory. Having now read the four orientations, do you see traces of a theoretical position in your coaching that you were not previously aware of?</li><li>Which orientation feels most foreign to the way you currently coach? What would it take for you to understand that approach from the inside?</li><li>Are there any statements you found difficult to place where no option felt quite right? What does that tell you about the complexity of your beliefs?</li></ul></div><div class='dv'></div>";
-  h+="<div class='sec'><div class='sh'><div class='sn'>8</div><div><div class='st'>Discussion Questions for Your Coach Developer</div><div class='ss'>Use these to open a reflective conversation</div></div></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>8</div><div><div class='st'>"+ofNameTitle+" Coaching Beliefs — Summary</div><div class='ss'>A brief overview of what your responses revealed</div></div></div>";
+  h+="<div class='card'><div class='cl'>Your dominant belief orientation</div><p>"+S1[bDom].charAt(0).toUpperCase()+S1[bDom].slice(1)+"</p></div>";
+  h+="<div class='card'><div class='cl'>Your practice orientation</div><p>"+S2[pDom].charAt(0).toUpperCase()+S2[pDom].slice(1)+"</p></div></div><div class='dv'></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>9</div><div><div class='st'>"+ofNameTitle+" Coaching Beliefs Profile</div><div class='ss'>How your beliefs and practice map across the four orientations</div></div></div>";
+  h+="<p style='font-size:14px;color:#f8fafc;line-height:1.8;margin-bottom:6px'><strong style='color:"+C[bDom]+"'>"+byName+"your dominant belief orientation is "+LB[bDom]+"</strong>, with <strong style='color:"+C[bSecond]+"'>"+LB[bSecond]+"</strong> as your second preference.</p>";
+  h+="<p style='font-size:14px;color:#f8fafc;line-height:1.8;margin-bottom:20px'>In practice, <strong style='color:"+C[pDom]+"'>"+LB[pDom]+"</strong> is your dominant orientation"+(pDom!==bDom?" — which differs from your beliefs, a gap worth exploring.":" — consistent with your belief profile.")+"</p>";
+  h+="<p style='font-size:13px;color:#cbd5e1;line-height:1.75;margin-bottom:18px'>The diagrams below show the shape of "+ofName+" beliefs and practice. The larger each petal, the more strongly you scored toward that orientation.</p>";
+  h+="<div class='pr'><div class='pb'><div class='pl'>How I See It - Beliefs</div>"+bSVG+"<div class='pn' style='color:"+C[bDom]+"'>"+LB[bDom]+"</div></div><div class='pb'><div class='pl'>How I Do It - Practice</div>"+pSVG+"<div class='pn' style='color:"+C[pDom]+"'>"+LB[pDom]+"</div></div></div>";
+  h+="<div class='sr'><div class='card'><div class='cl'>Belief Scores</div>"+KS.map(k=>sbar(k,bRaw[k]||0)).join("")+"</div><div class='card'><div class='cl'>Practice Scores</div>"+KS.map(k=>sbar(k,pRaw[k]||0)).join("")+"</div></div></div><div class='dv'></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>10</div><div><div class='st'>How "+ofNameTitle+" Sees the World of Skill Learning</div><div class='ss'>Unpacking what your belief profile means</div></div></div>";
+  h+="<div class='card'><div class='cl'>Summary</div><p>"+S1[bDom].charAt(0).toUpperCase()+S1[bDom].slice(1)+"</p></div>";
+  [bDom,...KS.filter(k=>k!==bDom)].forEach(k=>{h+=ocard(k,bRaw[k]||0,k===bDom,k===bSecond);});
+  h+="</div><div class='dv'></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>11</div><div><div class='st'>How "+ofNameTitle+" Coaches in Practice</div><div class='ss'>Unpacking what your practice profile means</div></div></div>";
+  h+="<div class='card'><div class='cl'>Summary</div><p>"+S2[pDom].charAt(0).toUpperCase()+S2[pDom].slice(1)+"</p></div>";
+  [pDom,...KS.filter(k=>k!==pDom)].forEach(k=>{h+=ocard(k,pRaw[k]||0,k===pDom,k===pSecond);});
+  h+="</div><div class='dv'></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>12</div><div><div class='st'>Beliefs-Practice Alignment</div><div class='ss'>Where "+ofName+" beliefs and practice align and where they diverge</div></div></div>";
+  h+=aligned?"<div class='ag'>"+byName+"your belief and practice orientations are aligned within a "+LB[bDom]+" framework.</div>":"<div class='aw'>"+byName+"a beliefs-practice gap has been detected. Your beliefs lean toward "+LB[bDom]+" while your practice leans toward "+LB[pDom]+".</div>";
+  h+=sk.map(k=>gbar(k,bRaw[k]||0,pRaw[k]||0)).join("");
+  h+="<div class='card' style='margin-top:12px'><div class='cl'>Interpretation</div><p>"+interp+"</p></div></div><div class='dv'></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>13</div><div><div class='st'>Areas for Development</div><div class='ss'>Specific opportunities based on "+ofName+" profile</div></div></div>";
+  h+=devAreas.map(da=>"<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid "+da.color+"'><div style='font-size:14px;font-weight:800;color:"+da.color+";margin-bottom:6px'>"+da.title+"</div><div style='font-size:13px;color:#e2e8f0;line-height:1.7'>"+da.body+"</div></div>").join("");
+  h+="</div><div class='dv'></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>14</div><div><div class='st'>Discussion Questions for Your Coach Developer</div><div class='ss'>Use these to open a reflective conversation</div></div></div>";
   h+="<ul class='ql'>"+dqs.map(q=>"<li>"+q.charAt(0).toUpperCase()+q.slice(1)+"</li>").join("")+"</ul></div>";
   h+="<div class='ft'><p>Generated by the <span class='gc'>Constraints Collective</span> Coaching Beliefs Profiler</p><p>"+date+"</p></div></div></body></html>";
   return h;
@@ -390,53 +393,18 @@ const PROFILES={
   behaviourist:{label:"Behaviourist / Traditional",color:"#ef4444",summary:"Your coaching beliefs align with Behaviourist and Traditional approaches. You see correct technique as the foundation of skilled performance and believe that repetition and reinforcement are the engines of learning.",bullets:["Correct technique is the foundation of skilled performance","Repetition and reinforcement drive learning","Errors should be corrected immediately","Part-to-whole skill progression is effective","The coach specifies and the athlete executes"]},
 };
 
-// ── Plain-language toggle ──────────────────────────────────────────────────
-function PlainToggle({ plain, onToggle }) {
-  return (
-    <div style={{
-      display:"flex", alignItems:"center", gap:10,
-      background:"#1e293b", borderRadius:10,
-      padding:"10px 14px", marginBottom:18,
-      border:"1px solid #334155"
-    }}>
-      <div style={{flex:1}}>
-        <div style={{fontSize:12, color:T.primary, fontWeight:600, marginBottom:2}}>
-          Question style
-        </div>
-        <div style={{fontSize:11, color:T.secondary, lineHeight:1.5}}>
-          {plain
-            ? "Showing everyday language — switch back anytime if you want the full theoretical version."
-            : "These questions use theoretical language. If you'd find a more everyday version helpful, switch at any time — it won't affect your results."}
-        </div>
-      </div>
-      <button
-        onClick={onToggle}
-        style={{
-          flexShrink:0,
-          background: plain ? "#a8e063" : "#334155",
-          color: plain ? "#0a0a0a" : T.primary,
-          border:"none", borderRadius:8,
-          padding:"8px 14px", fontSize:12,
-          fontWeight:700, cursor:"pointer",
-          whiteSpace:"nowrap"
-        }}
-      >
-        {plain ? "← Academic" : "Plain English →"}
-      </button>
-    </div>
-  );
-}
 
-function SpectrumQuestion({question,onComplete,isLast,plain}){
+
+function SpectrumQuestion({question,onComplete,isLast}){
   const trackRef=useRef(null);
   const dragRef=useRef(null);
   const [pos,setPos]=useState({A:15,B:38,C:62,D:85});
-  const qData = plain ? Q_PLAIN[question.id - 1] : question;
+  const qData = Q_PLAIN[question.id - 1];
   const shuffled=shuffleWithSeed(qData.opts,qData.id*37+7);
   const lmap={};shuffled.forEach((o,i)=>{lmap[LETTERS[i]]=o.id;});
   useEffect(()=>{
     setPos({A:15,B:38,C:62,D:85});
-  },[question.id, plain]);
+  },[question.id]);
   useEffect(()=>{
     const gp=cx=>{const r=trackRef.current?.getBoundingClientRect();if(!r)return 0;return clamp((cx-r.left)/r.width*100,0,100);};
     const mm=e=>{if(!dragRef.current)return;setPos(p=>({...p,[dragRef.current]:gp(e.clientX)}));};
@@ -497,7 +465,6 @@ export default function App(){
   const [name,setName]=useState("");
   const [ans,setAns]=useState({});
   const [reportHTML,setReportHTML]=useState(null);
-  const [plain, setPlain] = useState(false);
 
   const isBreak=step===10.5,isResults=step===21;
   const currentQ=(!isBreak&&!isResults&&step>=1&&step<=20)?Q[step-1]:null;
@@ -560,7 +527,7 @@ export default function App(){
         <p style={{color:T.body,fontSize:14,lineHeight:1.8,marginBottom:24}}>This tool explores the beliefs that shape how you think about skill learning and how those beliefs show up in your coaching.</p>
         <p style={{color:T.secondary,fontSize:13,lineHeight:1.8,marginBottom:28}}>There are no right or wrong answers. We are interested in your genuine views.</p>
         <div style={{background:"#1e293b",borderRadius:14,padding:"16px 20px",marginBottom:24}}>
-          <p style={{margin:0,color:T.body,fontSize:13,lineHeight:1.9}}><strong style={{color:T.primary}}>What to expect</strong><br/>A short introduction explaining why beliefs matter<br/>An overview of the four coaching orientations<br/>20 questions across two sections — about 10 minutes<br/>A personalised profile and report at the end</p>
+          <p style={{margin:0,color:T.body,fontSize:13,lineHeight:1.9}}><strong style={{color:T.primary}}>What to expect</strong><br/>A short introduction explaining why beliefs matter<br/>20 questions across two sections — about 10 minutes<br/>A personalised profile at the end</p>
         </div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name (optional)" style={{width:"100%",background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"11px 16px",color:T.primary,fontSize:14,marginBottom:14,boxSizing:"border-box",outline:"none"}}/>
         <button onClick={()=>setStep(0.5)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Begin</button>
@@ -606,44 +573,25 @@ export default function App(){
     </div>
   );
 
-  // ── Results screen ───────────────────────────────────────────────────────
+  // ── Results screen — simple invitation ──────────────────────────────────
   if(isResults){
-    const{bR,pR,bN,pN,bDom,pDom,interp}=computeResults();
-    const bP=PROFILES[bDom],pP=PROFILES[pDom],aligned=bDom===pDom;
-    const gd=KEYS.map(k=>({k,label:LABELS[k],color:COLORS[k],b:bR[k],p:pR[k],gap:Math.abs(bR[k]-pR[k])})).sort((a,b)=>b.gap-a.gap);
     return(
-      <div style={{minHeight:"100vh",background:"#0f172a",padding:"24px 20px 60px",fontFamily:"system-ui,sans-serif",color:T.primary}}>
-        <div style={{maxWidth:560,margin:"0 auto"}}>
-          <div style={{textAlign:"center",marginBottom:22}}>
-            <p style={{fontSize:11,color:T.muted,letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>{name?name+"'s":"Your"} Coaching Beliefs Profile</p>
-            <h2 style={{fontSize:20,fontWeight:800,color:bP.color,margin:"0 0 2px"}}>{bP.label}</h2>
-            <p style={{fontSize:12,color:T.secondary,margin:0}}>Dominant belief orientation</p>
-          </div>
-          <div style={{background:"#1e293b",borderRadius:20,padding:"20px 12px 14px",marginBottom:16,boxShadow:"0 4px 28px rgba(0,0,0,0.5)"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-              <div style={{textAlign:"center"}}><p style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 6px"}}>How I See It</p><Petal scores={bN} dominant={bDom} size={200}/><p style={{fontSize:11,color:bP.color,fontWeight:700,margin:"4px 0 0"}}>{bP.label}</p></div>
-              <div style={{textAlign:"center"}}><p style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 6px"}}>How I Do It</p><Petal scores={pN} dominant={pDom} size={200}/><p style={{fontSize:11,color:pP.color,fontWeight:700,margin:"4px 0 0"}}>{pP.label}</p></div>
-            </div>
-            <div style={{background:"#0f172a",borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
-              {aligned?<span style={{fontSize:12,color:"#4ade80"}}>Beliefs and practice are aligned</span>:<span style={{fontSize:12,color:"#f59e0b"}}>A beliefs-practice gap has been detected</span>}
-            </div>
-          </div>
-          <div style={{background:"#1e293b",borderRadius:16,padding:20,marginBottom:14,borderLeft:"4px solid "+(aligned?"#22c55e":"#f59e0b")}}>
-            <p style={{fontSize:11,fontWeight:700,color:aligned?"#22c55e":"#f59e0b",textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 10px"}}>{aligned?"Profile Coherence":"Beliefs-Practice Gap"}</p>
-            <p style={{color:T.body,fontSize:13,lineHeight:1.8,margin:0}}>{interp}</p>
-          </div>
-          <div style={{background:"#1e293b",borderRadius:16,padding:20,marginBottom:14}}>
-            <p style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 14px"}}>Belief vs Practice by Orientation</p>
-            {gd.map(item=>(
-              <div key={item.k} style={{marginBottom:14}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:12,color:item.color,fontWeight:600}}>{item.label}</span><span style={{fontSize:10,color:item.gap>0.15?"#f59e0b":T.muted,fontWeight:item.gap>0.15?700:400}}>{item.gap>0.15?"Gap: "+Math.round(item.gap*100)+"pts":"Aligned"}</span></div>
-                <div style={{marginBottom:3}}><div style={{fontSize:9,color:T.secondary,marginBottom:2}}>See it</div><div style={{background:"#0f172a",borderRadius:4,height:8}}><div style={{background:item.color,borderRadius:4,height:8,width:item.b*100+"%",opacity:0.9}}/></div></div>
-                <div><div style={{fontSize:9,color:T.secondary,marginBottom:2}}>Do it</div><div style={{background:"#0f172a",borderRadius:4,height:8}}><div style={{background:item.color,borderRadius:4,height:8,width:item.p*100+"%",opacity:0.5}}/></div></div>
-              </div>
-            ))}
-          </div>
-          <button onClick={openReport} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:14,fontWeight:800,cursor:"pointer",marginBottom:10}}>Open My Report →</button>
-          <button onClick={()=>{setStep(0);setAns({});setPlain(false);}} style={{width:"100%",background:"#1e293b",color:T.body,border:"1px solid #334155",borderRadius:10,padding:"12px",fontSize:13,cursor:"pointer"}}>Start Again</button>
+      <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,sans-serif",color:T.primary}}>
+        <div style={{maxWidth:480,width:"100%",textAlign:"center"}}>
+          <div style={{fontSize:52,marginBottom:20}}>✦</div>
+          <p style={{fontSize:11,color:"#a8e063",letterSpacing:"3px",textTransform:"uppercase",marginBottom:12,fontWeight:700}}>You're done</p>
+          <h2 style={{fontSize:24,fontWeight:900,color:T.primary,marginBottom:16}}>
+            {name ? name+"'s Coaching Beliefs Profile is ready" : "Your Coaching Beliefs Profile is ready"}
+          </h2>
+          <p style={{fontSize:14,color:T.body,lineHeight:1.8,marginBottom:32}}>
+            Your profile explores the relationship between your beliefs about skill learning and how those beliefs show up in your coaching. Open it below to see what emerged.
+          </p>
+          <button onClick={openReport} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"15px",fontSize:16,fontWeight:800,cursor:"pointer",marginBottom:12}}>
+            Open My Profile →
+          </button>
+          <button onClick={()=>{setStep(0);setAns({});}} style={{width:"100%",background:"#1e293b",color:T.body,border:"1px solid #334155",borderRadius:10,padding:"12px",fontSize:13,cursor:"pointer"}}>
+            Start Again
+          </button>
         </div>
       </div>
     );
@@ -662,13 +610,11 @@ export default function App(){
           <div style={{fontSize:10,color:T.muted,marginTop:4}}>{currentQ.s===1?"How I Think About Skill Learning":"How I Coach in Practice"}</div>
         </div>
 
-        <PlainToggle plain={plain} onToggle={()=>setPlain(p=>!p)} />
-
         <div style={{background:"#1e293b",borderRadius:14,padding:"14px 18px",marginBottom:18}}>
           <p style={{fontSize:14,fontWeight:600,color:T.primary,margin:"0 0 4px",lineHeight:1.5}}>{currentQ.topic}</p>
           <p style={{fontSize:12,color:T.secondary,margin:0}}>{currentQ.stem}</p>
         </div>
-        <SpectrumQuestion key={currentQ.id+"-"+plain} question={currentQ} onComplete={handleComplete} isLast={currentQ.id===20} plain={plain}/>
+        <SpectrumQuestion key={currentQ.id} question={currentQ} onComplete={handleComplete} isLast={currentQ.id===20}/>
       </div>
     </div>
   );
