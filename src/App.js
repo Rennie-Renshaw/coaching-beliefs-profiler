@@ -309,11 +309,21 @@ function makeReport(data){
   h+="<div class='sec'><div class='sh'><div class='sn'>5</div><div><div class='st'>Areas for Development</div><div class='ss'>Specific opportunities based on "+ofName+" profile</div></div></div>";
   h+=devAreas.map(da=>"<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid "+da.color+"'><div style='font-size:14px;font-weight:800;color:"+da.color+";margin-bottom:6px'>"+da.title+"</div><div style='font-size:13px;color:#e2e8f0;line-height:1.7'>"+da.body+"</div></div>").join("");
   h+="</div><div class='dv'></div>";
-  h+="<div class='sec'><div class='sh'><div class='sn'>6</div><div><div class='st'>Discussion Questions for Your Coach Developer</div><div class='ss'>Use these to open a reflective conversation</div></div></div>";
-  h+="<ul class='ql'>"+dqs.map(q=>"<li>"+q.charAt(0).toUpperCase()+q.slice(1)+"</li>").join("")+"</ul></div><div class='dv'></div>";
+  const orientHTML=[
+    {key:"behaviourist",color:"#ef4444",icon:"🔁",label:"Behaviourist / Traditional",short:"Skill is built through repetition and reinforcement. The coach demonstrates correct technique, corrects errors quickly, and drills movement until it becomes automatic."},
+    {key:"cognitive",color:"#3b82f6",icon:"🧠",label:"Cognitive / Information Processing",short:"Skill is a mental blueprint stored in the brain. The coach helps athletes build accurate mental models through instruction, explanation, and scenario-based practice."},
+    {key:"gamesbased",color:"#f59e0b",icon:"🎮",label:"Games-Based / Game Sense",short:"The game itself is the teacher. Athletes learn by solving tactical problems inside modified games. The coach designs game challenges and asks questions rather than giving answers."},
+    {key:"ecological",color:"#22c55e",icon:"🌱",label:"Ecological / Constraints-Led",short:"Skill emerges from the relationship between the athlete and their environment. The coach designs rich environments and adjusts task constraints, letting athletes find their own movement solutions."},
+  ];
+  h+="<div class='sec'><div class='sh'><div class='sn'>6</div><div><div class='st'>The Four Coaching Orientations</div><div class='ss'>A reference guide to the framework behind this profiler</div></div></div>";
+  h+="<p style='font-size:13px;color:#e2e8f0;line-height:1.75;margin-bottom:16px'>The questions in this profiler were built around four broad theoretical orientations. Most coaches hold a mixture of these views — your profile above shows how your beliefs and practice map across them.</p>";
+  h+=orientHTML.map(o=>"<div style='background:#1a1a1a;border-radius:12px;padding:14px 18px;margin-bottom:12px;border-left:4px solid "+o.color+"'><div style='display:flex;align-items:center;gap:8px;margin-bottom:6px'><span style='font-size:18px'>"+o.icon+"</span><span style='font-size:14px;font-weight:800;color:"+o.color+"'>"+o.label+"</span></div><p style='font-size:13px;color:#e2e8f0;line-height:1.7;margin:0'>"+o.short+"</p></div>").join("");
+  h+="</div><div class='dv'></div>";
   h+="<div class='sec'><div class='sh'><div class='sn'>7</div><div><div class='st'>Where Did You Think You Sat?</div><div class='ss'>A reflective prompt now that you have seen the orientations</div></div></div>";
   h+="<div class='card' style='margin-bottom:12px'><div class='cl'>Before you read this report</div><p>Before you completed this reflection, you probably had some sense of what kind of coach you are. Now that you have seen the four orientations and your profile, take a moment to consider the following prompts.</p></div>";
-  h+="<ul class='ql'><li>Before reading this report, which of the four orientations did you think best described your coaching, or did you not recognise yourself in any of them?</li><li>Does your profile match your instinct? If it does, what does that tell you? If it does not, what might explain the difference?</li><li>Many coaches describe themselves as pragmatic and not aligned with any particular theory. Having now read the four orientations, do you see traces of a theoretical position in your coaching that you were not previously aware of?</li><li>Which orientation feels most foreign to the way you currently coach? What would it take for you to understand that approach from the inside?</li><li>Are there any statements you found difficult to place where no option felt quite right? What does that tell you about the complexity of your beliefs?</li></ul></div>";
+  h+="<ul class='ql'><li>Before reading this report, which of the four orientations did you think best described your coaching, or did you not recognise yourself in any of them?</li><li>Does your profile match your instinct? If it does, what does that tell you? If it does not, what might explain the difference?</li><li>Many coaches describe themselves as pragmatic and not aligned with any particular theory. Having now read the four orientations, do you see traces of a theoretical position in your coaching that you were not previously aware of?</li><li>Which orientation feels most foreign to the way you currently coach? What would it take for you to understand that approach from the inside?</li><li>Are there any statements you found difficult to place where no option felt quite right? What does that tell you about the complexity of your beliefs?</li></ul></div><div class='dv'></div>";
+  h+="<div class='sec'><div class='sh'><div class='sn'>8</div><div><div class='st'>Discussion Questions for Your Coach Developer</div><div class='ss'>Use these to open a reflective conversation</div></div></div>";
+  h+="<ul class='ql'>"+dqs.map(q=>"<li>"+q.charAt(0).toUpperCase()+q.slice(1)+"</li>").join("")+"</ul></div>";
   h+="<div class='ft'><p>Generated by the <span class='gc'>Constraints Collective</span> Coaching Beliefs Profiler</p><p>"+date+"</p></div></div></body></html>";
   return h;
 }
@@ -578,34 +588,7 @@ export default function App(){
         <div style={{background:"#1e293b",borderRadius:14,padding:"16px 20px",marginBottom:24}}>
           <p style={{margin:0,color:T.body,fontSize:13,lineHeight:1.9}}><strong style={{color:T.primary}}>How it works</strong><br/>Section 1 — 10 questions about how you think about skill learning<br/>Section 2 — 10 questions about how you coach in practice<br/>Each question shows 4 statements — drag each one to show how closely it reflects your view</p>
         </div>
-        <button onClick={()=>setStep(0.75)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Next: The Four Orientations →</button>
-      </div>
-    </div>
-  );
-
-  // ── NEW: Four orientations intro ─────────────────────────────────────────
-  if(step===0.75) return(
-    <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,sans-serif"}}>
-      <div style={{maxWidth:580,width:"100%",color:T.primary}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
-          <div style={{width:32,height:32,borderRadius:8,background:"#a8e063",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#0a0a0a"}}>◈</div>
-          <div style={{fontSize:11,fontWeight:700,color:"#a8e063",textTransform:"uppercase",letterSpacing:"2px"}}>The Four Orientations</div>
-        </div>
-        <h2 style={{fontSize:22,fontWeight:900,marginBottom:8,color:T.primary}}>Four ways of thinking about coaching</h2>
-        <p style={{fontSize:14,color:T.body,lineHeight:1.75,marginBottom:24}}>The questions in this profiler are built around four broad theoretical orientations. You don't need to be familiar with any of them — just read the descriptions below to get a sense of each one before you begin.</p>
-
-        {ORIENTATIONS.map(o=>(
-          <div key={o.key} style={{background:"#1e293b",borderRadius:12,padding:"14px 18px",marginBottom:12,borderLeft:"4px solid "+o.color}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <span style={{fontSize:18}}>{o.icon}</span>
-              <span style={{fontSize:14,fontWeight:800,color:o.color}}>{o.label}</span>
-            </div>
-            <p style={{fontSize:13,color:T.body,lineHeight:1.7,margin:0}}>{o.short}</p>
-          </div>
-        ))}
-
-        <p style={{fontSize:13,color:T.secondary,lineHeight:1.7,margin:"20px 0 24px"}}>Most coaches hold a mixture of these views — and that's exactly what this profiler is designed to explore.</p>
-        <button onClick={()=>setStep(1)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Begin Section 1 →</button>
+        <button onClick={()=>setStep(1)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Begin the Reflection →</button>
       </div>
     </div>
   );
