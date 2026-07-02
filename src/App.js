@@ -1,11 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 
-const NEUTRAL = "#64748b"; // v2
+const NEUTRAL = "#64748b";
 const LETTERS = ["A","B","C","D"];
 const KEYS = ["ecological","gamesbased","cognitive","behaviourist"];
 const LABELS = { ecological:"Ecological / CLA", gamesbased:"Games-based", cognitive:"Cognitive", behaviourist:"Behaviourist" };
 const COLORS = { ecological:"#22c55e", gamesbased:"#f59e0b", cognitive:"#3b82f6", behaviourist:"#ef4444" };
 const SCHOOL_MAP = { ecological:"Ecological", gamesbased:"Games-based", cognitive:"Cognitive", behaviourist:"Behaviourist" };
+
+// ── Text colour constants (no more dim greys) ──────────────────────────────
+const T = {
+  primary:   "#f8fafc",   // headings, key labels
+  body:      "#e2e8f0",   // body text
+  secondary: "#cbd5e1",   // supporting text
+  muted:     "#94a3b8",   // captions, metadata
+  faint:     "#64748b",   // dividers, placeholders — used sparingly
+};
 
 function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
 function shuffleWithSeed(arr,seed){
@@ -13,6 +22,169 @@ function shuffleWithSeed(arr,seed){
   for(let i=a.length-1;i>0;i--){s=(s*1664525+1013904223)&0xffffffff;const j=Math.abs(s)%(i+1);[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
+
+// ── Plain-English question variants ───────────────────────────────────────
+const Q_PLAIN = [
+  {id:1,s:1,topic:"What is a skill?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"A skill is a movement you practise over and over until your body does it automatically without thinking."},
+    {id:"b",school:"Cognitive",text:"A skill is stored in the brain as a kind of blueprint — when you see the right situation, you retrieve the right movement."},
+    {id:"c",school:"Games-based",text:"A skill is a smart solution to a game situation — it might look different every time but gets the job done."},
+    {id:"d",school:"Ecological",text:"A skill is a movement that naturally fits the moment — it emerges from the athlete reading and responding to what is around them."}
+  ]},
+  {id:2,s:1,topic:"How does learning happen?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"Athletes learn by doing the right thing repeatedly until it becomes second nature."},
+    {id:"b",school:"Cognitive",text:"Athletes learn by building a clear mental picture of what good looks like and gradually getting closer to it."},
+    {id:"c",school:"Games-based",text:"Athletes learn by playing games that challenge them to think and solve problems."},
+    {id:"d",school:"Ecological",text:"Athletes learn by exploring and finding out what works in different situations through their own experience."}
+  ]},
+  {id:3,s:1,topic:"Movement variability",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"If a movement looks different each time, the skill hasn't been practised enough yet."},
+    {id:"b",school:"Cognitive",text:"Inconsistent movement means the athlete hasn't yet built a clear enough mental picture of what to do."},
+    {id:"c",school:"Games-based",text:"Movements naturally vary depending on the game situation — that's normal and sorts itself out with experience."},
+    {id:"d",school:"Ecological",text:"Varying your movement is actually useful — athletes need to adapt what they do to fit the situation they're in."}
+  ]},
+  {id:4,s:1,topic:"Role of errors",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"Mistakes need to be corrected straight away before the athlete gets used to doing it wrong."},
+    {id:"b",school:"Cognitive",text:"Mistakes show the athlete hasn't fully understood what to do yet, so more explanation is needed."},
+    {id:"c",school:"Games-based",text:"Mistakes are part of playing — athletes naturally improve as their understanding of the game grows."},
+    {id:"d",school:"Ecological",text:"Mistakes are useful information — they show what the athlete is still figuring out and are a normal part of learning."}
+  ]},
+  {id:5,s:1,topic:"Athlete-environment relationship",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"The environment is the setting where practice happens — I control it to make sure athletes practise correctly."},
+    {id:"b",school:"Cognitive",text:"The environment gives athletes information to take in, process, and use to decide what to do."},
+    {id:"c",school:"Games-based",text:"The game environment is the main driver of learning — it presents the problems athletes need to solve."},
+    {id:"d",school:"Ecological",text:"Athletes and their environment are connected — you can't understand how someone moves without looking at the situation they're in."}
+  ]},
+  {id:6,s:1,topic:"Mind and body",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"Physical training and technical practice are separate things — both are important but they are developed differently."},
+    {id:"b",school:"Cognitive",text:"What an athlete thinks drives what they do physically — the mind is in charge."},
+    {id:"c",school:"Games-based",text:"Thinking and physical execution are connected through playing, though they can still be worked on separately."},
+    {id:"d",school:"Ecological",text:"Thinking and moving are part of the same thing — you can't separate them in real practice."}
+  ]},
+  {id:7,s:1,topic:"Performance vs learning",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"If an athlete can do the skill correctly and consistently in practice, they've learned it."},
+    {id:"b",school:"Cognitive",text:"Real learning means the athlete can still do it correctly in different situations and under pressure."},
+    {id:"c",school:"Games-based",text:"Learning shows up in games — if athletes make good decisions under pressure, they've learned."},
+    {id:"d",school:"Ecological",text:"Doing well in practice doesn't prove learning — real learning means being able to adapt and perform in new situations over time."}
+  ]},
+  {id:8,s:1,topic:"Decision-making",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"Athletes make quick decisions because they've drilled their responses until they become automatic."},
+    {id:"b",school:"Cognitive",text:"Athletes read the situation, think through their options, and choose the best response based on what they know."},
+    {id:"c",school:"Games-based",text:"Athletes read the game, recognise patterns, and pick the best solution based on their experience."},
+    {id:"d",school:"Ecological",text:"Athletes pick up cues from what's happening around them and their movement response flows naturally from that."}
+  ]},
+  {id:9,s:1,topic:"Individual differences",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"Athletes who have practised correctly for longer will simply be better than those who haven't."},
+    {id:"b",school:"Cognitive",text:"Some athletes just think better under pressure and have built smarter mental models through experience."},
+    {id:"c",school:"Games-based",text:"Some athletes simply read the game better and make smarter decisions than others."},
+    {id:"d",school:"Ecological",text:"Every athlete has their own way of moving that suits their body and background — there's no single correct approach."}
+  ]},
+  {id:10,s:1,topic:"What does expertise look like?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[
+    {id:"a",school:"Behaviourist",text:"An expert athlete does the right thing automatically every time — they don't have to think about it."},
+    {id:"b",school:"Cognitive",text:"An expert athlete can quickly read any situation and make the right decision under pressure."},
+    {id:"c",school:"Games-based",text:"An expert athlete reads the game brilliantly and consistently does the right thing at the right time."},
+    {id:"d",school:"Ecological",text:"An expert athlete is finely tuned to their environment — they pick up small cues others miss and move in a way that perfectly fits the moment."}
+  ]},
+  {id:11,s:2,topic:"Designing practice",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I set up drills that focus on one specific skill, keeping things stable and predictable so athletes can repeat it correctly."},
+    {id:"b",school:"Cognitive",text:"I design tasks that help athletes understand what good looks like and gradually build up to more complex situations."},
+    {id:"c",school:"Games-based",text:"I set up games that force athletes to deal with the problems I want them to get better at solving."},
+    {id:"d",school:"Ecological",text:"I design practice that feels like the real thing — with the same information and challenges athletes face when they compete."}
+  ]},
+  {id:12,s:2,topic:"Giving instructions",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I tell athletes clearly what the correct movement looks like and exactly what they should be doing with their body."},
+    {id:"b",school:"Cognitive",text:"I explain what athletes should be thinking about, what to look for, and what the right response is."},
+    {id:"c",school:"Games-based",text:"I ask questions to get athletes thinking about what the game is asking of them and how to solve it."},
+    {id:"d",school:"Ecological",text:"I try to say as little as possible — I tweak the task itself to point athletes toward what they need to notice."}
+  ]},
+  {id:13,s:2,topic:"Using demonstrations",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I show athletes what the correct technique looks like so they have a clear model to copy."},
+    {id:"b",school:"Cognitive",text:"I demonstrate the movement or decision and walk athletes through the key things to focus on."},
+    {id:"c",school:"Games-based",text:"I show different ways of solving a game problem and ask athletes which might work best."},
+    {id:"d",school:"Ecological",text:"I show a range of possible solutions rather than one correct answer — to open up athletes' thinking."}
+  ]},
+  {id:14,s:2,topic:"Giving feedback",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I give immediate feedback after each attempt — telling athletes what was right, what was wrong, and what to change."},
+    {id:"b",school:"Cognitive",text:"I explain what went wrong in their movement or decision and how to fix it next time."},
+    {id:"c",school:"Games-based",text:"I ask athletes what they saw and what they were trying to do, and guide them toward better answers."},
+    {id:"d",school:"Ecological",text:"I often hold back feedback and let athletes figure it out. When I do step in, I point them toward what to look for in the environment."}
+  ]},
+  {id:15,s:2,topic:"Structuring progression",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I break skills into parts, work on each one separately, then put them together once each part is solid."},
+    {id:"b",school:"Cognitive",text:"I start simple and build up, making sure athletes understand and can execute each level before moving on."},
+    {id:"c",school:"Games-based",text:"I start with simple game versions and build toward the full game as athletes improve."},
+    {id:"d",school:"Ecological",text:"I keep the full task but adjust things like space or numbers to make it easier or harder without stripping out the real challenge."}
+  ]},
+  {id:16,s:2,topic:"Athlete involvement",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I plan the sessions. Athletes trust my expertise and follow the programme I design."},
+    {id:"b",school:"Cognitive",text:"I explain why we're doing what we're doing and involve athletes in setting goals, but I design the programme."},
+    {id:"c",school:"Games-based",text:"I regularly ask athletes what they want to work on and build that into my game-based tasks."},
+    {id:"d",school:"Ecological",text:"Athletes help design the sessions. Their views and experiences shape how I set things up."}
+  ]},
+  {id:17,s:2,topic:"Preparing for competition",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I drill techniques until they're automatic so athletes don't have to think under pressure — they just execute."},
+    {id:"b",school:"Cognitive",text:"I build mental skills alongside technical practice and bring them together as athletes get closer to competing."},
+    {id:"c",school:"Games-based",text:"I use competitive game formats throughout training so athletes are always practising under real pressure."},
+    {id:"d",school:"Ecological",text:"I design practice that mirrors competition as closely as possible — the pressure is built into the environment."}
+  ]},
+  {id:18,s:2,topic:"Working with specialists",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"Each specialist does their own job. I coordinate them, but physical, technical, mental, and tactical work happen separately."},
+    {id:"b",school:"Cognitive",text:"Specialists support each other — physical and mental capacity needs to match the technical and tactical demands."},
+    {id:"c",school:"Games-based",text:"I try to bring physical and tactical work into games, though mental skills and data analysis are still mostly separate."},
+    {id:"d",school:"Ecological",text:"I see all the different areas as connected. I try to design practice where physical, technical, tactical, and mental challenges are all present at the same time."}
+  ]},
+  {id:19,s:2,topic:"Using video and data",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I use video to show athletes what correct technique looks like and point out where they've gone wrong."},
+    {id:"b",school:"Cognitive",text:"I use video and data to help athletes understand their patterns and what they need to improve."},
+    {id:"c",school:"Games-based",text:"I mainly use video to analyse tactical patterns — what's working in games and what isn't."},
+    {id:"d",school:"Ecological",text:"I look at video to understand the relationship between what the athlete was picking up from their environment and how they moved in response."}
+  ]},
+  {id:20,s:2,topic:"Knowing if coaching is working",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[
+    {id:"a",school:"Behaviourist",text:"I know it's working when athletes perform the skill correctly and reliably in practice — consistent execution tells me they've learned it."},
+    {id:"b",school:"Cognitive",text:"I know it's working when athletes can execute correctly and make good decisions in a range of situations, including under pressure."},
+    {id:"c",school:"Games-based",text:"I know it's working when athletes make better decisions and solve problems more effectively in games."},
+    {id:"d",school:"Ecological",text:"I know it's working when athletes can adapt — when they can handle new problems, retain skills over time, and perform in conditions they haven't trained in before."}
+  ]},
+];
+
+const Q=[
+  {id:1,s:1,topic:"What is a skill?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"A skill is a learned movement pattern that, when practised correctly and repeatedly, becomes automatic and consistent."},{id:"b",school:"Cognitive",text:"A skill is a stored movement programme in the brain, retrieved and executed when the right cues are recognised."},{id:"c",school:"Games-based",text:"A skill is a tactical solution to a game problem that looks different depending on the situation but serves the same purpose."},{id:"d",school:"Ecological",text:"A skill is a functional movement solution that emerges from the interaction between an athlete, their body, and the specific environment."}]},
+  {id:2,s:1,topic:"How does learning happen?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Learning happens when correct movements are repeatedly reinforced until they become habitual and automatic."},{id:"b",school:"Cognitive",text:"Learning happens when athletes build and refine accurate mental representations of what good movement looks and feels like."},{id:"c",school:"Games-based",text:"Learning happens when athletes develop tactical understanding through solving game-based problems over time."},{id:"d",school:"Ecological",text:"Learning happens when athletes explore and fine-tune the relationship between their actions and the information available in their environment."}]},
+  {id:3,s:1,topic:"Movement variability",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Movement variability is error. It means the skill is not yet properly learned and needs more practice to become consistent."},{id:"b",school:"Cognitive",text:"Movement variability reflects inconsistency in mental representations and should be reduced through clearer instruction."},{id:"c",school:"Games-based",text:"Movement variability is natural in game situations and resolves itself as tactical understanding improves."},{id:"d",school:"Ecological",text:"Movement variability is a functional resource. Athletes use it to adapt their movements to the constantly changing demands of their environment."}]},
+  {id:4,s:1,topic:"Role of errors",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Errors are deviations from correct technique and should be corrected immediately before bad habits form."},{id:"b",school:"Cognitive",text:"Errors signal a gap in the athlete's mental model and need to be addressed through explanation and re-instruction."},{id:"c",school:"Games-based",text:"Errors are a natural part of playing and competing. They are resolved as game understanding develops."},{id:"d",school:"Ecological",text:"Errors are information about the current state of the athlete's perception-action relationship and are a necessary part of learning."}]},
+  {id:5,s:1,topic:"Athlete-environment relationship",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"The environment provides the conditions in which the athlete practises, a backdrop the coach controls to ensure correct responses occur."},{id:"b",school:"Cognitive",text:"The environment provides information that the athlete's brain processes and uses to select and execute the right movement programme."},{id:"c",school:"Games-based",text:"The environment, particularly the game, is the primary driver of learning. It creates the problems athletes need to solve."},{id:"d",school:"Ecological",text:"The athlete and environment are a coupled system. You cannot understand skill without understanding the specific environment in which it is performed."}]},
+  {id:6,s:1,topic:"Mind and body",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"The mind and body are trained separately. Physical conditioning develops the body and technical practice develops movement patterns."},{id:"b",school:"Cognitive",text:"The mind directs the body. Cognitive processes such as attention, memory, and decision-making drive movement execution."},{id:"c",school:"Games-based",text:"Tactical thinking and physical execution are connected through game play, but are still best developed through different types of practice."},{id:"d",school:"Ecological",text:"Mind and body are inseparable. Thinking, perceiving, and moving are all part of the same system and cannot be meaningfully separated in practice."}]},
+  {id:7,s:1,topic:"Performance vs learning",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"If an athlete performs a skill correctly and consistently in practice, that tells me they have learned it."},{id:"b",school:"Cognitive",text:"Learning is demonstrated when an athlete can retain and apply a skill correctly across different contexts and under pressure."},{id:"c",school:"Games-based",text:"Learning shows up in games. If athletes can solve problems and make good decisions under pressure, they have learned."},{id:"d",school:"Ecological",text:"Performance and learning are distinct. Genuine learning is only confirmed by retention, transfer, and adaptability over time."}]},
+  {id:8,s:1,topic:"Decision-making",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Decision-making is the result of conditioned responses. Athletes respond automatically based on what has been drilled."},{id:"b",school:"Cognitive",text:"Decision-making is a cognitive process. Athletes perceive cues, access mental representations, and select the most appropriate response."},{id:"c",school:"Games-based",text:"Decision-making is tactical. Athletes read the game, recognise patterns, and choose solutions based on their understanding of the situation."},{id:"d",school:"Ecological",text:"Decision-making is inseparable from perception and movement. Athletes directly pick up information from the environment that guides action."}]},
+  {id:9,s:1,topic:"Individual differences",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Individual differences reflect different levels of practice and reinforcement. Athletes who have trained more correctly will perform better."},{id:"b",school:"Cognitive",text:"Individual differences reflect different cognitive capacities, knowledge structures, and mental representations built through experience."},{id:"c",school:"Games-based",text:"Individual differences are mostly tactical. Some athletes read the game better and make smarter decisions than others."},{id:"d",school:"Ecological",text:"Individual differences reflect unique movement signatures. Each athlete has their own optimal way of solving movement problems based on their body, history, and environment."}]},
+  {id:10,s:1,topic:"What does expertise look like?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"An expert athlete performs the correct technique consistently and automatically across all situations without needing to think about it."},{id:"b",school:"Cognitive",text:"An expert athlete has highly developed mental representations and can rapidly process information to make accurate decisions under pressure."},{id:"c",school:"Games-based",text:"An expert athlete reads the game exceptionally well and consistently makes the right tactical decisions at the right time."},{id:"d",school:"Ecological",text:"An expert athlete has a highly attuned perception-action system. They pick up subtle information from the environment and move in ways precisely fitted to the demands of each situation."}]},
+  {id:11,s:2,topic:"Designing practice",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I design drills that isolate the specific technique I want to develop, keeping conditions stable and repeatable so athletes can perfect the movement."},{id:"b",school:"Cognitive",text:"I design practice tasks that build mental models of correct technique and decision-making, progressing from simple to complex scenarios."},{id:"c",school:"Games-based",text:"I design modified games that create the tactical problems I want athletes to solve, adjusting rules to focus on specific game principles."},{id:"d",school:"Ecological",text:"I design practice environments that reproduce the key information and action opportunities athletes encounter in performance, keeping the task whole wherever possible."}]},
+  {id:12,s:2,topic:"Giving instructions",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I give clear, specific instructions about what the correct movement looks like and what athletes should focus on doing with their body."},{id:"b",school:"Cognitive",text:"I explain what athletes should be thinking about, what cues to look for, and what the correct decision or movement response looks like."},{id:"c",school:"Games-based",text:"I ask questions to focus athletes' attention on the tactical problem the game is presenting and what they need to do to solve it."},{id:"d",school:"Ecological",text:"I say as little as possible verbally. I adjust the task constraints to direct athletes' attention toward the relevant information in the environment."}]},
+  {id:13,s:2,topic:"Using demonstrations",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I demonstrate the correct technique so athletes have a clear model to copy and a standard to aim for."},{id:"b",school:"Cognitive",text:"I demonstrate the correct movement pattern or decision sequence and explain the key points athletes should focus on replicating."},{id:"c",school:"Games-based",text:"I use demonstrations to show different tactical options, then ask athletes which solution might work best and why."},{id:"d",school:"Ecological",text:"I use demonstrations to draw attention to movement possibilities, showing a range of solutions rather than a single correct form."}]},
+  {id:14,s:2,topic:"Giving feedback",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I give immediate, specific feedback after each attempt, telling athletes what was correct, what was wrong, and exactly what to do differently."},{id:"b",school:"Cognitive",text:"I give informational feedback that helps athletes understand what went wrong in their technique or decision and how to correct it."},{id:"c",school:"Games-based",text:"I ask athletes questions about what they saw and what they were trying to do tactically, guiding them toward better solutions."},{id:"d",school:"Ecological",text:"I often withhold immediate feedback to allow athletes to self-regulate. When I do give feedback I direct attention to the information in the environment they may not be picking up."}]},
+  {id:15,s:2,topic:"Structuring progression",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I break skills into their component parts, develop each one separately, then gradually combine them once each part is mastered."},{id:"b",school:"Cognitive",text:"I build from simple to complex scenarios, ensuring athletes have the correct technique and cognitive understanding at each level before progressing."},{id:"c",school:"Games-based",text:"I start with the whole game and progressively increase its complexity, using simpler game forms first and building toward the full game."},{id:"d",school:"Ecological",text:"I keep the task whole and adjust constraints such as space, numbers, or equipment to make the task easier or harder without removing the key information sources."}]},
+  {id:16,s:2,topic:"Athlete involvement",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I plan and deliver the programme. Athletes trust my expertise and follow the sessions I design for them."},{id:"b",school:"Cognitive",text:"I explain the rationale for my programme and involve athletes in goal-setting, but the design itself is based on my technical expertise."},{id:"c",school:"Games-based",text:"I regularly ask athletes what aspects of their game they want to work on and use their input to shape game-based tasks."},{id:"d",school:"Ecological",text:"I actively co-design practice with athletes. Their perceptions, preferences, and experiences are central to how I shape the learning environment."}]},
+  {id:17,s:2,topic:"Preparing for competition",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I ensure techniques are highly automated through repetition so that under pressure athletes do not have to think. They just execute."},{id:"b",school:"Cognitive",text:"I build mental toughness and decision-making skills alongside technical practice and integrate them as athletes approach competition readiness."},{id:"c",school:"Games-based",text:"I use competitive game formats regularly throughout training so athletes are constantly practising under game-like pressure."},{id:"d",school:"Ecological",text:"I design practice environments that closely replicate the information, decisions, and physical demands of competition. Pressure is built into the representative design."}]},
+  {id:18,s:2,topic:"Working with specialists",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"Each specialist works in their own domain. I coordinate their inputs but physical, technical, mental, and tactical aspects are developed separately."},{id:"b",school:"Cognitive",text:"I work with specialists to ensure athletes have the physical capacity and mental skills to execute technical and tactical requirements. Each domain supports the others."},{id:"c",school:"Games-based",text:"I try to integrate tactical and physical work within game-based formats, though mental skills and analytics are still mostly addressed separately."},{id:"d",school:"Ecological",text:"I work from the principle that physical, technical, tactical, and psychological dimensions are inseparable. I aim to create practice environments where all are present simultaneously."}]},
+  {id:19,s:2,topic:"Using video and data",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I use video to show athletes the correct technique and highlight their errors, comparing their movement to the ideal model."},{id:"b",school:"Cognitive",text:"I use video and data to help athletes understand their technical and decision-making patterns, building awareness of what they need to improve."},{id:"c",school:"Games-based",text:"I use video primarily to analyse tactical patterns, reviewing game footage to identify what is and is not working tactically."},{id:"d",school:"Ecological",text:"I use video and data to examine the relationship between the information available to the athlete and the actions they took, looking at perception-action coupling rather than technique in isolation."}]},
+  {id:20,s:2,topic:"Knowing if coaching is working",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I know it is working when athletes perform the skill correctly and consistently in practice. Reliable, repeatable execution tells me learning has occurred."},{id:"b",school:"Cognitive",text:"I know it is working when athletes can demonstrate correct technique and make good decisions under a range of conditions, including pressure situations."},{id:"c",school:"Games-based",text:"I know it is working when athletes are making better decisions and solving tactical problems more effectively in games."},{id:"d",school:"Ecological",text:"I know it is working when athletes show improved adaptability, when they can solve novel movement problems, retain skills over time, and perform in conditions different from those they trained in."}]},
+];
+
+// ── Four-orientation intro data ────────────────────────────────────────────
+const ORIENTATIONS = [
+  { key:"behaviourist", color:"#ef4444", label:"Behaviourist / Traditional",
+    icon:"🔁",
+    short:"Skill is built through repetition and reinforcement. The coach demonstrates correct technique, corrects errors quickly, and drills movement until it becomes automatic." },
+  { key:"cognitive", color:"#3b82f6", label:"Cognitive / Information Processing",
+    icon:"🧠",
+    short:"Skill is a mental blueprint stored in the brain. The coach helps athletes build accurate mental models through instruction, explanation, and scenario-based practice." },
+  { key:"gamesbased", color:"#f59e0b", label:"Games-Based / Game Sense",
+    icon:"🎮",
+    short:"The game itself is the teacher. Athletes learn by solving tactical problems inside modified games. The coach designs game challenges and asks questions rather than giving answers." },
+  { key:"ecological", color:"#22c55e", label:"Ecological / Constraints-Led",
+    icon:"🌱",
+    short:"Skill emerges from the relationship between the athlete and their environment. The coach designs rich environments and adjusts task constraints, letting athletes find their own movement solutions." },
+];
 
 function makePetalSVG(scores,dominant,sz){
   sz=sz||220;
@@ -41,7 +213,7 @@ function makePetalSVG(scores,dominant,sz){
   OS.forEach(q=>{
     const rad=q.angle*Math.PI/180;
     const lx=cx+Math.cos(rad)*(maxR+sz*0.13),ly=cy-Math.sin(rad)*(maxR+sz*0.13);
-    o+="<text x='"+lx+"' y='"+(ly+3)+"' text-anchor='middle' font-family='system-ui,sans-serif' font-size='8.5' font-weight='"+(q.key===dominant?"bold":"normal")+"' fill='"+(q.key===dominant?q.color:"#666")+"'>"+q.label+"</text>";
+    o+="<text x='"+lx+"' y='"+(ly+3)+"' text-anchor='middle' font-family='system-ui,sans-serif' font-size='8.5' font-weight='"+(q.key===dominant?"bold":"normal")+"' fill='"+(q.key===dominant?q.color:"#94a3b8")+"'>"+q.label+"</text>";
   });
   o+="</svg>";
   return o;
@@ -102,11 +274,11 @@ function makeReport(data){
   ];
 
   const sk=KS.slice().sort((a,b)=>Math.abs((bRaw[b]||0)-(pRaw[b]||0))-Math.abs((bRaw[a]||0)-(pRaw[a]||0)));
-  function sbar(k,v){return "<div style='margin-bottom:10px'><div style='display:flex;justify-content:space-between;margin-bottom:3px'><span style='font-size:11px;font-weight:700;color:"+C[k]+"'>"+LB[k]+"</span><span style='font-size:10px;color:#94a3b8'>"+Math.round(v*100)+"%</span></div><div style='background:#111;border-radius:4px;height:7px'><div style='background:"+C[k]+";border-radius:4px;height:7px;width:"+Math.round(v*100)+"%;opacity:0.9'></div></div></div>";}
-  function gbar(k,b,p){const gp=Math.abs(b-p),fl=gp>0.15;return "<div style='margin-bottom:16px'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:5px'><span style='font-size:13px;font-weight:700;color:"+C[k]+"'>"+LB[k]+"</span><span style='font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+(fl?"#f59e0b22":"#22c55e22")+";color:"+(fl?"#f59e0b":"#22c55e")+"'>"+(fl?"Gap: "+Math.round(gp*100)+"pts":"Aligned")+"</span></div><div style='font-size:9px;color:#94a3b8;margin-bottom:2px'>See it</div><div style='background:#111;border-radius:4px;height:6px;margin-bottom:4px'><div style='background:"+C[k]+";border-radius:4px;height:6px;width:"+Math.round(b*100)+"%;opacity:0.9'></div></div><div style='font-size:9px;color:#94a3b8;margin-bottom:2px'>Do it</div><div style='background:#111;border-radius:4px;height:6px'><div style='background:"+C[k]+";border-radius:4px;height:6px;width:"+Math.round(p*100)+"%;opacity:0.5'></div></div></div>";}
-  function ocard(k,raw,isDom,is2nd){const od=OD[k],sc=Math.round(raw*100)+"%",op=isDom?"1":is2nd?"0.95":"0.85";let s="<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:4px solid "+od.color+";opacity:"+op+"'><div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px'><span style='font-size:14px;font-weight:800;color:"+od.color+"'>"+od.label+"</span><span style='font-size:11px;color:#94a3b8'>("+sc+")</span>";if(isDom)s+="<span style='font-size:10px;background:"+od.color+"33;color:"+od.color+";padding:2px 8px;border-radius:10px'>Dominant</span>";if(is2nd)s+="<span style='font-size:10px;background:#44444433;color:#94a3b8;padding:2px 8px;border-radius:10px'>2nd</span>";s+="</div><p style='font-size:13px;color:#cbd5e1;line-height:1.7;margin-bottom:10px'>"+od.desc+"</p><ul style='list-style:none;padding:0'>"+od.bullets.map(b=>"<li style='font-size:12px;color:#94a3b8;margin-bottom:4px;padding-left:12px;position:relative'><span style='position:absolute;left:0;color:"+od.color+"'>·</span>"+b+"</li>").join("")+"</ul></div>";return s;}
+  function sbar(k,v){return "<div style='margin-bottom:10px'><div style='display:flex;justify-content:space-between;margin-bottom:3px'><span style='font-size:11px;font-weight:700;color:"+C[k]+"'>"+LB[k]+"</span><span style='font-size:10px;color:#cbd5e1'>"+Math.round(v*100)+"%</span></div><div style='background:#111;border-radius:4px;height:7px'><div style='background:"+C[k]+";border-radius:4px;height:7px;width:"+Math.round(v*100)+"%;opacity:0.9'></div></div></div>";}
+  function gbar(k,b,p){const gp=Math.abs(b-p),fl=gp>0.15;return "<div style='margin-bottom:16px'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:5px'><span style='font-size:13px;font-weight:700;color:"+C[k]+"'>"+LB[k]+"</span><span style='font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:"+(fl?"#f59e0b22":"#22c55e22")+";color:"+(fl?"#f59e0b":"#22c55e")+"'>"+(fl?"Gap: "+Math.round(gp*100)+"pts":"Aligned")+"</span></div><div style='font-size:9px;color:#cbd5e1;margin-bottom:2px'>See it</div><div style='background:#111;border-radius:4px;height:6px;margin-bottom:4px'><div style='background:"+C[k]+";border-radius:4px;height:6px;width:"+Math.round(b*100)+"%;opacity:0.9'></div></div><div style='font-size:9px;color:#cbd5e1;margin-bottom:2px'>Do it</div><div style='background:#111;border-radius:4px;height:6px'><div style='background:"+C[k]+";border-radius:4px;height:6px;width:"+Math.round(p*100)+"%;opacity:0.5'></div></div></div>";}
+  function ocard(k,raw,isDom,is2nd){const od=OD[k],sc=Math.round(raw*100)+"%",op=isDom?"1":is2nd?"0.95":"0.85";let s="<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:4px solid "+od.color+";opacity:"+op+"'><div style='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px'><span style='font-size:14px;font-weight:800;color:"+od.color+"'>"+od.label+"</span><span style='font-size:11px;color:#cbd5e1'>("+sc+")</span>";if(isDom)s+="<span style='font-size:10px;background:"+od.color+"33;color:"+od.color+";padding:2px 8px;border-radius:10px'>Dominant</span>";if(is2nd)s+="<span style='font-size:10px;background:#44444433;color:#e2e8f0;padding:2px 8px;border-radius:10px'>2nd</span>";s+="</div><p style='font-size:13px;color:#e2e8f0;line-height:1.7;margin-bottom:10px'>"+od.desc+"</p><ul style='list-style:none;padding:0'>"+od.bullets.map(b=>"<li style='font-size:12px;color:#cbd5e1;margin-bottom:4px;padding-left:12px;position:relative'><span style='position:absolute;left:0;color:"+od.color+"'>·</span>"+b+"</li>").join("")+"</ul></div>";return s;}
 
-  const css="*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0;line-height:1.65}.wrap{max-width:820px;margin:0 auto;padding:32px 32px 60px}.cover{background:#1a1a1a;border-radius:16px;padding:44px 40px;margin-bottom:36px;position:relative;overflow:hidden}.ct{position:absolute;top:0;left:0;right:0;height:4px;background:#a8e063}.sh{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #222}.sn{width:28px;height:28px;border-radius:8px;background:#a8e063;color:#0a0a0a;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}.st{font-size:17px;font-weight:800;color:#fff}.ss{font-size:12px;color:#94a3b8}.sec{margin-bottom:32px}.card{background:#1a1a1a;border-radius:12px;padding:18px 22px;margin-bottom:12px}.cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#a8e063;margin-bottom:8px}.card p{font-size:13px;color:#cbd5e1;line-height:1.75}.pr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}.pb{background:#1a1a1a;border-radius:14px;padding:18px 12px;text-align:center}.pl{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}.pn{font-size:12px;font-weight:700;margin-top:8px}.sr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}.aw{background:#f59e0b11;border:1px solid #f59e0b55;color:#f59e0b;border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;line-height:1.65}.ag{background:#22c55e11;border:1px solid #22c55e55;color:#22c55e;border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;line-height:1.65}.dv{height:1px;background:#222;margin:28px 0}.ql{list-style:none}.ql li{padding:13px 16px;background:#1a1a1a;border-radius:10px;margin-bottom:10px;font-size:13px;color:#cbd5e1;line-height:1.65;border-left:3px solid #a8e063}.ql li::before{content:'Q  ';font-weight:800;color:#a8e063}.ft{margin-top:44px;padding-top:22px;border-top:1px solid #222;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}.ft p{font-size:11px;color:#64748b}.gc{color:#a8e063;font-weight:700}@media print{body{background:#fff!important;color:#111!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.cover{background:#0a0a0a!important}.card,.pb{background:#f8f8f8!important;border:1px solid #ddd!important}.dv{background:#ddd!important}}";
+  const css="*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#e2e8f0;line-height:1.65}.wrap{max-width:820px;margin:0 auto;padding:32px 32px 60px}.cover{background:#1a1a1a;border-radius:16px;padding:44px 40px;margin-bottom:36px;position:relative;overflow:hidden}.ct{position:absolute;top:0;left:0;right:0;height:4px;background:#a8e063}.sh{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #222}.sn{width:28px;height:28px;border-radius:8px;background:#a8e063;color:#0a0a0a;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}.st{font-size:17px;font-weight:800;color:#fff}.ss{font-size:12px;color:#cbd5e1}.sec{margin-bottom:32px}.card{background:#1a1a1a;border-radius:12px;padding:18px 22px;margin-bottom:12px}.cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#a8e063;margin-bottom:8px}.card p{font-size:13px;color:#e2e8f0;line-height:1.75}.pr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}.pb{background:#1a1a1a;border-radius:14px;padding:18px 12px;text-align:center}.pl{font-size:10px;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}.pn{font-size:12px;font-weight:700;margin-top:8px}.sr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}.aw{background:#f59e0b11;border:1px solid #f59e0b55;color:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;line-height:1.65}.ag{background:#22c55e11;border:1px solid #22c55e55;color:#f8fafc;border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px;line-height:1.65}.dv{height:1px;background:#222;margin:28px 0}.ql{list-style:none}.ql li{padding:13px 16px;background:#1a1a1a;border-radius:10px;margin-bottom:10px;font-size:13px;color:#e2e8f0;line-height:1.65;border-left:3px solid #a8e063}.ql li::before{content:'Q  ';font-weight:800;color:#a8e063}.ft{margin-top:44px;padding-top:22px;border-top:1px solid #222;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}.ft p{font-size:11px;color:#94a3b8}.gc{color:#a8e063;font-weight:700}@media print{body{background:#fff!important;color:#111!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.cover{background:#0a0a0a!important}.card,.pb{background:#f8f8f8!important;border:1px solid #ddd!important}.dv{background:#ddd!important}}";
 
   const bSVG=makePetalSVG(bNorm,bDom,210);
   const pSVG=makePetalSVG(pNorm,pDom,210);
@@ -114,12 +286,12 @@ function makeReport(data){
   let h="<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'/><title>Coaching Beliefs Profile"+(name?" - "+name:"")+"</title><style>"+css+"</style></head><body><div class='wrap'>";
   h+="<div class='cover'><div class='ct'></div><div style='display:flex;align-items:center;gap:14px;margin-bottom:28px'><svg xmlns='http://www.w3.org/2000/svg' width='46' height='46' viewBox='0 0 100 100'><text x='4' y='70' font-family='Georgia,serif' font-style='italic' font-weight='900' font-size='72' fill='white'>cc</text><line x1='6' y1='84' x2='70' y2='84' stroke='#a8e063' stroke-width='6' stroke-linecap='round'/></svg><div><div style='font-size:10px;font-weight:800;color:#a8e063;letter-spacing:3px;text-transform:uppercase'>Constraints</div><div style='font-size:10px;font-weight:800;color:#fff;letter-spacing:3px;text-transform:uppercase'>Collective</div></div></div>";
   h+="<div style='font-size:26px;font-weight:900;color:#fff;margin-bottom:4px'>Coaching Beliefs Profiler</div><div style='font-size:12px;color:#a8e063;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px'>Personal Report</div>";
-  h+="<div style='display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px'><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-bottom:3px'>Coach</div><div style='font-size:15px;font-weight:700;color:#fff'>"+(name||"Anonymous")+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-bottom:3px'>Date</div><div style='font-size:15px;font-weight:700;color:#fff'>"+date+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-bottom:3px'>Dominant Belief</div><div style='font-size:15px;font-weight:700;color:"+C[bDom]+"'>"+LB[bDom]+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-bottom:3px'>Practice Orientation</div><div style='font-size:15px;font-weight:700;color:"+C[pDom]+"'>"+LB[pDom]+"</div></div></div>";
+  h+="<div style='display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px'><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Coach</div><div style='font-size:15px;font-weight:700;color:#fff'>"+(name||"Anonymous")+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Date</div><div style='font-size:15px;font-weight:700;color:#fff'>"+date+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Dominant Belief</div><div style='font-size:15px;font-weight:700;color:"+C[bDom]+"'>"+LB[bDom]+"</div></div><div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Practice Orientation</div><div style='font-size:15px;font-weight:700;color:"+C[pDom]+"'>"+LB[pDom]+"</div></div></div>";
   h+="<div style='display:inline-flex;align-items:center;gap:8px;background:#222;border-radius:8px;padding:8px 14px'><div style='width:10px;height:10px;border-radius:50%;background:"+C[bDom]+"'></div><span style='font-size:13px;font-weight:700;color:#fff'>"+(aligned?"Aligned - "+LB[bDom]:"Beliefs: "+LB[bDom]+" / Practice: "+LB[pDom])+"</span></div></div>";
   h+="<div class='sec'><div class='sh'><div class='sn'>1</div><div><div class='st'>"+ofNameTitle+" Coaching Beliefs Profile</div><div class='ss'>How your beliefs and practice map across the four orientations</div></div></div>";
-  h+="<p style='font-size:14px;color:#ddd;line-height:1.8;margin-bottom:6px'><strong style='color:"+C[bDom]+"'>"+byName+"your dominant belief orientation is "+LB[bDom]+"</strong>, with <strong style='color:"+C[bSecond]+"'>"+LB[bSecond]+"</strong> as your second preference.</p>";
-  h+="<p style='font-size:14px;color:#ddd;line-height:1.8;margin-bottom:20px'>In practice, <strong style='color:"+C[pDom]+"'>"+LB[pDom]+"</strong> is your dominant orientation"+(pDom!==bDom?" — which differs from your beliefs, a gap worth exploring.":" — consistent with your belief profile.")+"</p>";
-  h+="<p style='font-size:13px;color:#94a3b8;line-height:1.75;margin-bottom:18px'>The diagrams below show the shape of "+ofName+" beliefs and practice. The larger each petal, the more strongly you scored toward that orientation.</p>";
+  h+="<p style='font-size:14px;color:#f8fafc;line-height:1.8;margin-bottom:6px'><strong style='color:"+C[bDom]+"'>"+byName+"your dominant belief orientation is "+LB[bDom]+"</strong>, with <strong style='color:"+C[bSecond]+"'>"+LB[bSecond]+"</strong> as your second preference.</p>";
+  h+="<p style='font-size:14px;color:#f8fafc;line-height:1.8;margin-bottom:20px'>In practice, <strong style='color:"+C[pDom]+"'>"+LB[pDom]+"</strong> is your dominant orientation"+(pDom!==bDom?" — which differs from your beliefs, a gap worth exploring.":" — consistent with your belief profile.")+"</p>";
+  h+="<p style='font-size:13px;color:#cbd5e1;line-height:1.75;margin-bottom:18px'>The diagrams below show the shape of "+ofName+" beliefs and practice. The larger each petal, the more strongly you scored toward that orientation.</p>";
   h+="<div class='pr'><div class='pb'><div class='pl'>How I See It - Beliefs</div>"+bSVG+"<div class='pn' style='color:"+C[bDom]+"'>"+LB[bDom]+"</div></div><div class='pb'><div class='pl'>How I Do It - Practice</div>"+pSVG+"<div class='pn' style='color:"+C[pDom]+"'>"+LB[pDom]+"</div></div></div>";
   h+="<div class='sr'><div class='card'><div class='cl'>Belief Scores</div>"+KS.map(k=>sbar(k,bRaw[k]||0)).join("")+"</div><div class='card'><div class='cl'>Practice Scores</div>"+KS.map(k=>sbar(k,pRaw[k]||0)).join("")+"</div></div></div><div class='dv'></div>";
   h+="<div class='sec'><div class='sh'><div class='sn'>2</div><div><div class='st'>How "+ofNameTitle+" Sees the World of Skill Learning</div><div class='ss'>Unpacking what your belief profile means</div></div></div>";
@@ -135,7 +307,7 @@ function makeReport(data){
   h+=sk.map(k=>gbar(k,bRaw[k]||0,pRaw[k]||0)).join("");
   h+="<div class='card' style='margin-top:12px'><div class='cl'>Interpretation</div><p>"+interp+"</p></div></div><div class='dv'></div>";
   h+="<div class='sec'><div class='sh'><div class='sn'>5</div><div><div class='st'>Areas for Development</div><div class='ss'>Specific opportunities based on "+ofName+" profile</div></div></div>";
-  h+=devAreas.map(da=>"<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid "+da.color+"'><div style='font-size:14px;font-weight:800;color:"+da.color+";margin-bottom:6px'>"+da.title+"</div><div style='font-size:13px;color:#cbd5e1;line-height:1.7'>"+da.body+"</div></div>").join("");
+  h+=devAreas.map(da=>"<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid "+da.color+"'><div style='font-size:14px;font-weight:800;color:"+da.color+";margin-bottom:6px'>"+da.title+"</div><div style='font-size:13px;color:#e2e8f0;line-height:1.7'>"+da.body+"</div></div>").join("");
   h+="</div><div class='dv'></div>";
   h+="<div class='sec'><div class='sh'><div class='sn'>6</div><div><div class='st'>Discussion Questions for Your Coach Developer</div><div class='ss'>Use these to open a reflective conversation</div></div></div>";
   h+="<ul class='ql'>"+dqs.map(q=>"<li>"+q.charAt(0).toUpperCase()+q.slice(1)+"</li>").join("")+"</ul></div><div class='dv'></div>";
@@ -208,35 +380,53 @@ const PROFILES={
   behaviourist:{label:"Behaviourist / Traditional",color:"#ef4444",summary:"Your coaching beliefs align with Behaviourist and Traditional approaches. You see correct technique as the foundation of skilled performance and believe that repetition and reinforcement are the engines of learning.",bullets:["Correct technique is the foundation of skilled performance","Repetition and reinforcement drive learning","Errors should be corrected immediately","Part-to-whole skill progression is effective","The coach specifies and the athlete executes"]},
 };
 
-const Q=[
-  {id:1,s:1,topic:"What is a skill?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"A skill is a learned movement pattern that, when practised correctly and repeatedly, becomes automatic and consistent."},{id:"b",school:"Cognitive",text:"A skill is a stored movement programme in the brain, retrieved and executed when the right cues are recognised."},{id:"c",school:"Games-based",text:"A skill is a tactical solution to a game problem that looks different depending on the situation but serves the same purpose."},{id:"d",school:"Ecological",text:"A skill is a functional movement solution that emerges from the interaction between an athlete, their body, and the specific environment."}]},
-  {id:2,s:1,topic:"How does learning happen?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Learning happens when correct movements are repeatedly reinforced until they become habitual and automatic."},{id:"b",school:"Cognitive",text:"Learning happens when athletes build and refine accurate mental representations of what good movement looks and feels like."},{id:"c",school:"Games-based",text:"Learning happens when athletes develop tactical understanding through solving game-based problems over time."},{id:"d",school:"Ecological",text:"Learning happens when athletes explore and fine-tune the relationship between their actions and the information available in their environment."}]},
-  {id:3,s:1,topic:"Movement variability",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Movement variability is error. It means the skill is not yet properly learned and needs more practice to become consistent."},{id:"b",school:"Cognitive",text:"Movement variability reflects inconsistency in mental representations and should be reduced through clearer instruction."},{id:"c",school:"Games-based",text:"Movement variability is natural in game situations and resolves itself as tactical understanding improves."},{id:"d",school:"Ecological",text:"Movement variability is a functional resource. Athletes use it to adapt their movements to the constantly changing demands of their environment."}]},
-  {id:4,s:1,topic:"Role of errors",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Errors are deviations from correct technique and should be corrected immediately before bad habits form."},{id:"b",school:"Cognitive",text:"Errors signal a gap in the athlete's mental model and need to be addressed through explanation and re-instruction."},{id:"c",school:"Games-based",text:"Errors are a natural part of playing and competing. They are resolved as game understanding develops."},{id:"d",school:"Ecological",text:"Errors are information about the current state of the athlete's perception-action relationship and are a necessary part of learning."}]},
-  {id:5,s:1,topic:"Athlete-environment relationship",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"The environment provides the conditions in which the athlete practises, a backdrop the coach controls to ensure correct responses occur."},{id:"b",school:"Cognitive",text:"The environment provides information that the athlete's brain processes and uses to select and execute the right movement programme."},{id:"c",school:"Games-based",text:"The environment, particularly the game, is the primary driver of learning. It creates the problems athletes need to solve."},{id:"d",school:"Ecological",text:"The athlete and environment are a coupled system. You cannot understand skill without understanding the specific environment in which it is performed."}]},
-  {id:6,s:1,topic:"Mind and body",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"The mind and body are trained separately. Physical conditioning develops the body and technical practice develops movement patterns."},{id:"b",school:"Cognitive",text:"The mind directs the body. Cognitive processes such as attention, memory, and decision-making drive movement execution."},{id:"c",school:"Games-based",text:"Tactical thinking and physical execution are connected through game play, but are still best developed through different types of practice."},{id:"d",school:"Ecological",text:"Mind and body are inseparable. Thinking, perceiving, and moving are all part of the same system and cannot be meaningfully separated in practice."}]},
-  {id:7,s:1,topic:"Performance vs learning",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"If an athlete performs a skill correctly and consistently in practice, that tells me they have learned it."},{id:"b",school:"Cognitive",text:"Learning is demonstrated when an athlete can retain and apply a skill correctly across different contexts and under pressure."},{id:"c",school:"Games-based",text:"Learning shows up in games. If athletes can solve problems and make good decisions under pressure, they have learned."},{id:"d",school:"Ecological",text:"Performance and learning are distinct. Genuine learning is only confirmed by retention, transfer, and adaptability over time."}]},
-  {id:8,s:1,topic:"Decision-making",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Decision-making is the result of conditioned responses. Athletes respond automatically based on what has been drilled."},{id:"b",school:"Cognitive",text:"Decision-making is a cognitive process. Athletes perceive cues, access mental representations, and select the most appropriate response."},{id:"c",school:"Games-based",text:"Decision-making is tactical. Athletes read the game, recognise patterns, and choose solutions based on their understanding of the situation."},{id:"d",school:"Ecological",text:"Decision-making is inseparable from perception and movement. Athletes directly pick up information from the environment that guides action."}]},
-  {id:9,s:1,topic:"Individual differences",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"Individual differences reflect different levels of practice and reinforcement. Athletes who have trained more correctly will perform better."},{id:"b",school:"Cognitive",text:"Individual differences reflect different cognitive capacities, knowledge structures, and mental representations built through experience."},{id:"c",school:"Games-based",text:"Individual differences are mostly tactical. Some athletes read the game better and make smarter decisions than others."},{id:"d",school:"Ecological",text:"Individual differences reflect unique movement signatures. Each athlete has their own optimal way of solving movement problems based on their body, history, and environment."}]},
-  {id:10,s:1,topic:"What does expertise look like?",stem:"Drag each pin to show how closely each statement reflects your view.",opts:[{id:"a",school:"Behaviourist",text:"An expert athlete performs the correct technique consistently and automatically across all situations without needing to think about it."},{id:"b",school:"Cognitive",text:"An expert athlete has highly developed mental representations and can rapidly process information to make accurate decisions under pressure."},{id:"c",school:"Games-based",text:"An expert athlete reads the game exceptionally well and consistently makes the right tactical decisions at the right time."},{id:"d",school:"Ecological",text:"An expert athlete has a highly attuned perception-action system. They pick up subtle information from the environment and move in ways precisely fitted to the demands of each situation."}]},
-  {id:11,s:2,topic:"Designing practice",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I design drills that isolate the specific technique I want to develop, keeping conditions stable and repeatable so athletes can perfect the movement."},{id:"b",school:"Cognitive",text:"I design practice tasks that build mental models of correct technique and decision-making, progressing from simple to complex scenarios."},{id:"c",school:"Games-based",text:"I design modified games that create the tactical problems I want athletes to solve, adjusting rules to focus on specific game principles."},{id:"d",school:"Ecological",text:"I design practice environments that reproduce the key information and action opportunities athletes encounter in performance, keeping the task whole wherever possible."}]},
-  {id:12,s:2,topic:"Giving instructions",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I give clear, specific instructions about what the correct movement looks like and what athletes should focus on doing with their body."},{id:"b",school:"Cognitive",text:"I explain what athletes should be thinking about, what cues to look for, and what the correct decision or movement response looks like."},{id:"c",school:"Games-based",text:"I ask questions to focus athletes' attention on the tactical problem the game is presenting and what they need to do to solve it."},{id:"d",school:"Ecological",text:"I say as little as possible verbally. I adjust the task constraints to direct athletes' attention toward the relevant information in the environment."}]},
-  {id:13,s:2,topic:"Using demonstrations",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I demonstrate the correct technique so athletes have a clear model to copy and a standard to aim for."},{id:"b",school:"Cognitive",text:"I demonstrate the correct movement pattern or decision sequence and explain the key points athletes should focus on replicating."},{id:"c",school:"Games-based",text:"I use demonstrations to show different tactical options, then ask athletes which solution might work best and why."},{id:"d",school:"Ecological",text:"I use demonstrations to draw attention to movement possibilities, showing a range of solutions rather than a single correct form."}]},
-  {id:14,s:2,topic:"Giving feedback",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I give immediate, specific feedback after each attempt, telling athletes what was correct, what was wrong, and exactly what to do differently."},{id:"b",school:"Cognitive",text:"I give informational feedback that helps athletes understand what went wrong in their technique or decision and how to correct it."},{id:"c",school:"Games-based",text:"I ask athletes questions about what they saw and what they were trying to do tactically, guiding them toward better solutions."},{id:"d",school:"Ecological",text:"I often withhold immediate feedback to allow athletes to self-regulate. When I do give feedback I direct attention to the information in the environment they may not be picking up."}]},
-  {id:15,s:2,topic:"Structuring progression",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I break skills into their component parts, develop each one separately, then gradually combine them once each part is mastered."},{id:"b",school:"Cognitive",text:"I build from simple to complex scenarios, ensuring athletes have the correct technique and cognitive understanding at each level before progressing."},{id:"c",school:"Games-based",text:"I start with the whole game and progressively increase its complexity, using simpler game forms first and building toward the full game."},{id:"d",school:"Ecological",text:"I keep the task whole and adjust constraints such as space, numbers, or equipment to make the task easier or harder without removing the key information sources."}]},
-  {id:16,s:2,topic:"Athlete involvement",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I plan and deliver the programme. Athletes trust my expertise and follow the sessions I design for them."},{id:"b",school:"Cognitive",text:"I explain the rationale for my programme and involve athletes in goal-setting, but the design itself is based on my technical expertise."},{id:"c",school:"Games-based",text:"I regularly ask athletes what aspects of their game they want to work on and use their input to shape game-based tasks."},{id:"d",school:"Ecological",text:"I actively co-design practice with athletes. Their perceptions, preferences, and experiences are central to how I shape the learning environment."}]},
-  {id:17,s:2,topic:"Preparing for competition",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I ensure techniques are highly automated through repetition so that under pressure athletes do not have to think. They just execute."},{id:"b",school:"Cognitive",text:"I build mental toughness and decision-making skills alongside technical practice and integrate them as athletes approach competition readiness."},{id:"c",school:"Games-based",text:"I use competitive game formats regularly throughout training so athletes are constantly practising under game-like pressure."},{id:"d",school:"Ecological",text:"I design practice environments that closely replicate the information, decisions, and physical demands of competition. Pressure is built into the representative design."}]},
-  {id:18,s:2,topic:"Working with specialists",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"Each specialist works in their own domain. I coordinate their inputs but physical, technical, mental, and tactical aspects are developed separately."},{id:"b",school:"Cognitive",text:"I work with specialists to ensure athletes have the physical capacity and mental skills to execute technical and tactical requirements. Each domain supports the others."},{id:"c",school:"Games-based",text:"I try to integrate tactical and physical work within game-based formats, though mental skills and analytics are still mostly addressed separately."},{id:"d",school:"Ecological",text:"I work from the principle that physical, technical, tactical, and psychological dimensions are inseparable. I aim to create practice environments where all are present simultaneously."}]},
-  {id:19,s:2,topic:"Using video and data",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I use video to show athletes the correct technique and highlight their errors, comparing their movement to the ideal model."},{id:"b",school:"Cognitive",text:"I use video and data to help athletes understand their technical and decision-making patterns, building awareness of what they need to improve."},{id:"c",school:"Games-based",text:"I use video primarily to analyse tactical patterns, reviewing game footage to identify what is and is not working tactically."},{id:"d",school:"Ecological",text:"I use video and data to examine the relationship between the information available to the athlete and the actions they took, looking at perception-action coupling rather than technique in isolation."}]},
-  {id:20,s:2,topic:"Knowing if coaching is working",stem:"Drag each pin to show how closely each statement reflects your approach.",opts:[{id:"a",school:"Behaviourist",text:"I know it is working when athletes perform the skill correctly and consistently in practice. Reliable, repeatable execution tells me learning has occurred."},{id:"b",school:"Cognitive",text:"I know it is working when athletes can demonstrate correct technique and make good decisions under a range of conditions, including pressure situations."},{id:"c",school:"Games-based",text:"I know it is working when athletes are making better decisions and solving tactical problems more effectively in games."},{id:"d",school:"Ecological",text:"I know it is working when athletes show improved adaptability, when they can solve novel movement problems, retain skills over time, and perform in conditions different from those they trained in."}]},
-];
+// ── Plain-language toggle ──────────────────────────────────────────────────
+function PlainToggle({ plain, onToggle }) {
+  return (
+    <div style={{
+      display:"flex", alignItems:"center", gap:10,
+      background:"#1e293b", borderRadius:10,
+      padding:"10px 14px", marginBottom:18,
+      border:"1px solid #334155"
+    }}>
+      <div style={{flex:1}}>
+        <div style={{fontSize:12, color:T.primary, fontWeight:600, marginBottom:2}}>
+          Question style
+        </div>
+        <div style={{fontSize:11, color:T.secondary, lineHeight:1.5}}>
+          {plain
+            ? "Showing everyday language — switch back anytime if you want the full theoretical version."
+            : "These questions use theoretical language. If you'd find a more everyday version helpful, switch at any time — it won't affect your results."}
+        </div>
+      </div>
+      <button
+        onClick={onToggle}
+        style={{
+          flexShrink:0,
+          background: plain ? "#a8e063" : "#334155",
+          color: plain ? "#0a0a0a" : T.primary,
+          border:"none", borderRadius:8,
+          padding:"8px 14px", fontSize:12,
+          fontWeight:700, cursor:"pointer",
+          whiteSpace:"nowrap"
+        }}
+      >
+        {plain ? "← Academic" : "Plain English →"}
+      </button>
+    </div>
+  );
+}
 
-function SpectrumQuestion({question,onComplete,isLast}){
+function SpectrumQuestion({question,onComplete,isLast,plain}){
   const trackRef=useRef(null);
   const dragRef=useRef(null);
   const [pos,setPos]=useState({A:15,B:38,C:62,D:85});
-  const shuffled=shuffleWithSeed(question.opts,question.id*37+7);
+  const qData = plain ? Q_PLAIN[question.id - 1] : question;
+  const shuffled=shuffleWithSeed(qData.opts,qData.id*37+7);
   const lmap={};shuffled.forEach((o,i)=>{lmap[LETTERS[i]]=o.id;});
+  useEffect(()=>{
+    setPos({A:15,B:38,C:62,D:85});
+  },[question.id, plain]);
   useEffect(()=>{
     const gp=cx=>{const r=trackRef.current?.getBoundingClientRect();if(!r)return 0;return clamp((cx-r.left)/r.width*100,0,100);};
     const mm=e=>{if(!dragRef.current)return;setPos(p=>({...p,[dragRef.current]:gp(e.clientX)}));};
@@ -251,13 +441,13 @@ function SpectrumQuestion({question,onComplete,isLast}){
     <div style={{userSelect:"none"}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:32}}>
         {shuffled.map((o,i)=>(
-          <div key={o.id} style={{background:"#1e293b",border:"2px solid "+NEUTRAL,borderRadius:10,padding:"10px 12px"}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#94a3b8",marginBottom:4}}>Statement {LETTERS[i]}</div>
-            <div style={{fontSize:12,color:"#e2e8f0",lineHeight:1.55}}>{o.text}</div>
+          <div key={o.id} style={{background:"#1e293b",border:"2px solid #334155",borderRadius:10,padding:"10px 12px"}}>
+            <div style={{fontSize:10,fontWeight:700,color:T.muted,marginBottom:4}}>Statement {LETTERS[i]}</div>
+            <div style={{fontSize:12,color:T.primary,lineHeight:1.55}}>{o.text}</div>
           </div>
         ))}
       </div>
-      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#64748b",marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.secondary,marginBottom:8}}>
         <span>Not like my view</span><span>Very like my view</span>
       </div>
       <div ref={trackRef} style={{position:"relative",height:6,background:"#334155",borderRadius:6,margin:"42px 0 54px"}}>
@@ -265,14 +455,14 @@ function SpectrumQuestion({question,onComplete,isLast}){
         {LETTERS.map(l=>(
           <div key={l} onMouseDown={e=>{e.preventDefault();dragRef.current=l;}} onTouchStart={()=>{dragRef.current=l;}}
             style={{position:"absolute",left:pos[l]+"%",top:"50%",transform:"translate(-50%,-50%)",cursor:"grab",zIndex:10,display:"flex",flexDirection:"column",alignItems:"center",touchAction:"none"}}>
-            <div style={{position:"absolute",bottom:28,background:"#1e293b",border:"1px solid #475569",color:"#e2e8f0",fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:4,pointerEvents:"none"}}>{l}</div>
+            <div style={{position:"absolute",bottom:28,background:"#1e293b",border:"1px solid #475569",color:T.primary,fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:4,pointerEvents:"none"}}>{l}</div>
             <div style={{width:24,height:24,borderRadius:"50%",background:NEUTRAL,border:"3px solid #0f172a",boxShadow:"0 0 0 2px "+NEUTRAL}}/>
-            <div style={{position:"absolute",top:28,fontSize:10,color:"#64748b",fontWeight:600,pointerEvents:"none"}}>{Math.round(pos[l])}</div>
+            <div style={{position:"absolute",top:28,fontSize:10,color:T.secondary,fontWeight:600,pointerEvents:"none"}}>{Math.round(pos[l])}</div>
           </div>
         ))}
       </div>
       <button onClick={done} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>
-        {isLast?"See My Profile":"Next"}
+        {isLast?"See My Profile →":"Next →"}
       </button>
     </div>
   );
@@ -286,7 +476,7 @@ function Petal({scores,dominant,size=220}){
       <defs>{OS.map(q=><radialGradient key={q.key} id={`pg-${q.key}-${size}`} cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor={q.color}/><stop offset="100%" stopColor={q.dark} stopOpacity="0.8"/></radialGradient>)}<filter id={`sh-${size}`}><feDropShadow dx="0" dy="1" stdDeviation="3" floodColor="#000" floodOpacity="0.4"/></filter></defs>
       <line x1={cx} y1={size*0.08} x2={cx} y2={size*0.92} stroke="#1e293b" strokeWidth="1.5"/>
       <line x1={size*0.08} y1={cy} x2={size*0.92} y2={cy} stroke="#1e293b" strokeWidth="1.5"/>
-      {OS.map(q=>{const s=Math.max(0.07,scores[q.key]||0);const ry=minR+s*(maxR-minR),rx=ry*0.52;const rad=q.angle*Math.PI/180;const ox=cx+Math.cos(rad)*ry*0.5,oy=cy-Math.sin(rad)*ry*0.5;const lx=cx+Math.cos(rad)*(maxR+size*0.11),ly=cy-Math.sin(rad)*(maxR+size*0.11);return(<g key={q.key}><ellipse cx={ox} cy={oy} rx={rx} ry={ry} fill={`url(#pg-${q.key}-${size})`} filter={`url(#sh-${size})`} opacity={dominant===q.key?1:0.5} transform={`rotate(${-q.angle+90},${ox},${oy})`}/><text x={lx} y={ly} textAnchor="middle" fill={dominant===q.key?q.color:"#475569"} fontSize="7.5" fontWeight={dominant===q.key?"700":"400"}>{q.label}</text></g>);})}
+      {OS.map(q=>{const s=Math.max(0.07,scores[q.key]||0);const ry=minR+s*(maxR-minR),rx=ry*0.52;const rad=q.angle*Math.PI/180;const ox=cx+Math.cos(rad)*ry*0.5,oy=cy-Math.sin(rad)*ry*0.5;const lx=cx+Math.cos(rad)*(maxR+size*0.11),ly=cy-Math.sin(rad)*(maxR+size*0.11);return(<g key={q.key}><ellipse cx={ox} cy={oy} rx={rx} ry={ry} fill={`url(#pg-${q.key}-${size})`} filter={`url(#sh-${size})`} opacity={dominant===q.key?1:0.5} transform={`rotate(${-q.angle+90},${ox},${oy})`}/><text x={lx} y={ly} textAnchor="middle" fill={dominant===q.key?q.color:"#94a3b8"} fontSize="7.5" fontWeight={dominant===q.key?"700":"400"}>{q.label}</text></g>);})}
       <circle cx={cx} cy={cy} r={size*0.05} fill="#0f172a" stroke="#334155" strokeWidth="1.5"/>
     </svg>
   );
@@ -297,6 +487,8 @@ export default function App(){
   const [name,setName]=useState("");
   const [ans,setAns]=useState({});
   const [reportHTML,setReportHTML]=useState(null);
+  const [plain, setPlain] = useState(false);
+
   const isBreak=step===10.5,isResults=step===21;
   const currentQ=(!isBreak&&!isResults&&step>=1&&step<=20)?Q[step-1]:null;
 
@@ -330,92 +522,124 @@ export default function App(){
   const pct=(Object.keys(ans).length/20)*100;
   const qNum=currentQ?(currentQ.s===1?currentQ.id:currentQ.id-10):0;
 
+  // ── Report view ─────────────────────────────────────────────────────────
   if(reportHTML) return(
     <div>
       <div style={{background:"#1e293b",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
         <div style={{fontSize:13,color:"#a8e063",fontFamily:"system-ui,sans-serif",fontWeight:600}}>
-          To save as PDF: <span style={{color:"#fff",fontWeight:400}}>press Cmd+P then choose Save as PDF</span>
+          To save as PDF: <span style={{color:T.primary,fontWeight:400}}>press Cmd+P then choose Save as PDF</span>
         </div>
         <button onClick={()=>setReportHTML(null)} style={{background:"#a8e063",color:"#000",border:"none",borderRadius:6,padding:"7px 16px",fontSize:13,fontWeight:800,cursor:"pointer"}}>
-          Back
+          ← Back
         </button>
       </div>
       <div dangerouslySetInnerHTML={{__html:reportHTML}}/>
     </div>
   );
 
+  // ── Landing screen ───────────────────────────────────────────────────────
   if(step===0) return(
     <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,sans-serif"}}>
-      <div style={{maxWidth:540,width:"100%",color:"#f1f5f9"}}>
+      <div style={{maxWidth:540,width:"100%",color:T.primary}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:32}}>
           <svg width="44" height="44" viewBox="0 0 100 100"><text x="4" y="70" fontFamily="Georgia,serif" fontStyle="italic" fontWeight="900" fontSize="72" fill="white">cc</text><line x1="6" y1="84" x2="70" y2="84" stroke="#a8e063" strokeWidth="6" strokeLinecap="round"/></svg>
-          <div style={{lineHeight:1.2}}><div style={{fontSize:10,fontWeight:800,color:"#a8e063",letterSpacing:"3px",textTransform:"uppercase"}}>Constraints</div><div style={{fontSize:10,fontWeight:800,color:"#fff",letterSpacing:"3px",textTransform:"uppercase"}}>Collective</div></div>
+          <div style={{lineHeight:1.2}}><div style={{fontSize:10,fontWeight:800,color:"#a8e063",letterSpacing:"3px",textTransform:"uppercase"}}>Constraints</div><div style={{fontSize:10,fontWeight:800,color:T.primary,letterSpacing:"3px",textTransform:"uppercase"}}>Collective</div></div>
         </div>
-        <h1 style={{fontSize:28,fontWeight:900,marginBottom:8}}>Coaching Beliefs Profiler</h1>
+        <h1 style={{fontSize:28,fontWeight:900,marginBottom:8,color:T.primary}}>Coaching Beliefs Profiler</h1>
         <p style={{color:"#a8e063",fontSize:13,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",marginBottom:24}}>Personal Report Tool</p>
-        <p style={{color:"#94a3b8",fontSize:14,lineHeight:1.8,marginBottom:24}}>This tool explores the beliefs that shape how you think about skill learning and how those beliefs show up in your coaching.</p>
-        <p style={{color:"#64748b",fontSize:13,lineHeight:1.8,marginBottom:28}}>There are no right or wrong answers. We are interested in your genuine views.</p>
+        <p style={{color:T.body,fontSize:14,lineHeight:1.8,marginBottom:24}}>This tool explores the beliefs that shape how you think about skill learning and how those beliefs show up in your coaching.</p>
+        <p style={{color:T.secondary,fontSize:13,lineHeight:1.8,marginBottom:28}}>There are no right or wrong answers. We are interested in your genuine views.</p>
         <div style={{background:"#1e293b",borderRadius:14,padding:"16px 20px",marginBottom:24}}>
-          <p style={{margin:0,color:"#cbd5e1",fontSize:13,lineHeight:1.9}}><strong style={{color:"#fff"}}>What to expect</strong><br/>A short introduction explaining why beliefs matter<br/>20 questions across two sections — about 10 minutes<br/>A personalised profile and report at the end</p>
+          <p style={{margin:0,color:T.body,fontSize:13,lineHeight:1.9}}><strong style={{color:T.primary}}>What to expect</strong><br/>A short introduction explaining why beliefs matter<br/>An overview of the four coaching orientations<br/>20 questions across two sections — about 10 minutes<br/>A personalised profile and report at the end</p>
         </div>
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name (optional)" style={{width:"100%",background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"11px 16px",color:"#f1f5f9",fontSize:14,marginBottom:14,boxSizing:"border-box",outline:"none"}}/>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name (optional)" style={{width:"100%",background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"11px 16px",color:T.primary,fontSize:14,marginBottom:14,boxSizing:"border-box",outline:"none"}}/>
         <button onClick={()=>setStep(0.5)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Begin</button>
       </div>
     </div>
   );
 
+  // ── Why this matters ─────────────────────────────────────────────────────
   if(step===0.5) return(
     <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,sans-serif"}}>
-      <div style={{maxWidth:580,width:"100%",color:"#f1f5f9"}}>
+      <div style={{maxWidth:580,width:"100%",color:T.primary}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28}}>
           <div style={{width:32,height:32,borderRadius:8,background:"#a8e063",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:"#0a0a0a"}}>i</div>
           <div style={{fontSize:11,fontWeight:700,color:"#a8e063",textTransform:"uppercase",letterSpacing:"2px"}}>Why This Matters</div>
         </div>
-        <h2 style={{fontSize:22,fontWeight:900,marginBottom:20}}>Why are we interested in your coaching beliefs?</h2>
-        <div style={{fontSize:14,color:"#cbd5e1",lineHeight:1.85,marginBottom:20}}>
+        <h2 style={{fontSize:22,fontWeight:900,marginBottom:20,color:T.primary}}>Why are we interested in your coaching beliefs?</h2>
+        <div style={{fontSize:14,color:T.body,lineHeight:1.85,marginBottom:20}}>
           <p style={{marginBottom:14}}>Every coach brings a set of beliefs to their work — about what a skill is, how athletes learn, what practice should look like, and what good coaching feels like. Most of the time, these beliefs operate quietly in the background, shaping every decision you make without being explicitly examined.</p>
           <p style={{marginBottom:14}}>Much of what coaches do is grounded in accepted wisdom rather than in explicit, examined beliefs about how learning actually works. This is not a criticism — it is simply how coaching knowledge is passed on: through experience, watching other coaches, and trying things out.</p>
           <p>This tool is designed to help you surface and examine your beliefs — not to judge them, but to create a starting point for honest reflection and purposeful development.</p>
         </div>
         <div style={{background:"#1e293b",borderRadius:12,padding:"14px 18px",marginBottom:28,borderLeft:"3px solid #a8e063"}}>
-          <p style={{fontSize:13,color:"#94a3b8",lineHeight:1.7,margin:0,fontStyle:"italic"}}>"The goal is to support you in unpacking your assumptions and beliefs — to deconstruct taken-for-granted habits and critically review your own practice. This goes beyond adding new knowledge. It is about genuine transformation."</p>
+          <p style={{fontSize:13,color:T.secondary,lineHeight:1.7,margin:0,fontStyle:"italic"}}>"The goal is to support you in unpacking your assumptions and beliefs — to deconstruct taken-for-granted habits and critically review your own practice. This goes beyond adding new knowledge. It is about genuine transformation."</p>
         </div>
         <div style={{background:"#1e293b",borderRadius:14,padding:"16px 20px",marginBottom:24}}>
-          <p style={{margin:0,color:"#cbd5e1",fontSize:13,lineHeight:1.9}}><strong style={{color:"#fff"}}>How it works</strong><br/>Section 1 — 10 questions about how you think about skill learning<br/>Section 2 — 10 questions about how you coach in practice<br/>Each question shows 4 statements — drag each one to show how closely it reflects your view</p>
+          <p style={{margin:0,color:T.body,fontSize:13,lineHeight:1.9}}><strong style={{color:T.primary}}>How it works</strong><br/>Section 1 — 10 questions about how you think about skill learning<br/>Section 2 — 10 questions about how you coach in practice<br/>Each question shows 4 statements — drag each one to show how closely it reflects your view</p>
         </div>
-        <button onClick={()=>setStep(1)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Begin the Reflection</button>
+        <button onClick={()=>setStep(0.75)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Next: The Four Orientations →</button>
       </div>
     </div>
   );
 
+  // ── NEW: Four orientations intro ─────────────────────────────────────────
+  if(step===0.75) return(
+    <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,sans-serif"}}>
+      <div style={{maxWidth:580,width:"100%",color:T.primary}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+          <div style={{width:32,height:32,borderRadius:8,background:"#a8e063",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#0a0a0a"}}>◈</div>
+          <div style={{fontSize:11,fontWeight:700,color:"#a8e063",textTransform:"uppercase",letterSpacing:"2px"}}>The Four Orientations</div>
+        </div>
+        <h2 style={{fontSize:22,fontWeight:900,marginBottom:8,color:T.primary}}>Four ways of thinking about coaching</h2>
+        <p style={{fontSize:14,color:T.body,lineHeight:1.75,marginBottom:24}}>The questions in this profiler are built around four broad theoretical orientations. You don't need to be familiar with any of them — just read the descriptions below to get a sense of each one before you begin.</p>
+
+        {ORIENTATIONS.map(o=>(
+          <div key={o.key} style={{background:"#1e293b",borderRadius:12,padding:"14px 18px",marginBottom:12,borderLeft:"4px solid "+o.color}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <span style={{fontSize:18}}>{o.icon}</span>
+              <span style={{fontSize:14,fontWeight:800,color:o.color}}>{o.label}</span>
+            </div>
+            <p style={{fontSize:13,color:T.body,lineHeight:1.7,margin:0}}>{o.short}</p>
+          </div>
+        ))}
+
+        <p style={{fontSize:13,color:T.secondary,lineHeight:1.7,margin:"20px 0 24px"}}>Most coaches hold a mixture of these views — and that's exactly what this profiler is designed to explore.</p>
+        <button onClick={()=>setStep(1)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Begin Section 1 →</button>
+      </div>
+    </div>
+  );
+
+  // ── Section break ────────────────────────────────────────────────────────
   if(isBreak) return(
     <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,sans-serif"}}>
-      <div style={{maxWidth:460,width:"100%",textAlign:"center",color:"#f1f5f9"}}>
+      <div style={{maxWidth:460,width:"100%",textAlign:"center",color:T.primary}}>
         <div style={{fontSize:48,marginBottom:14}}>✅</div>
-        <h2 style={{fontSize:22,fontWeight:800,marginBottom:10}}>Section 1 Complete</h2>
-        <p style={{color:"#94a3b8",fontSize:14,lineHeight:1.75,marginBottom:8}}>You have finished How I Think About Skill Learning.</p>
-        <p style={{color:"#64748b",fontSize:14,lineHeight:1.75,marginBottom:28}}>Section 2 explores How I Coach in Practice.</p>
-        <button onClick={()=>setStep(11)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Continue to Section 2</button>
+        <h2 style={{fontSize:22,fontWeight:800,marginBottom:10,color:T.primary}}>Section 1 Complete</h2>
+        <p style={{color:T.body,fontSize:14,lineHeight:1.75,marginBottom:8}}>You have finished How I Think About Skill Learning.</p>
+        <p style={{color:T.secondary,fontSize:14,lineHeight:1.75,marginBottom:28}}>Section 2 explores How I Coach in Practice.</p>
+        <button onClick={()=>setStep(11)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Continue to Section 2 →</button>
       </div>
     </div>
   );
 
+  // ── Results screen ───────────────────────────────────────────────────────
   if(isResults){
     const{bR,pR,bN,pN,bDom,pDom,interp}=computeResults();
     const bP=PROFILES[bDom],pP=PROFILES[pDom],aligned=bDom===pDom;
     const gd=KEYS.map(k=>({k,label:LABELS[k],color:COLORS[k],b:bR[k],p:pR[k],gap:Math.abs(bR[k]-pR[k])})).sort((a,b)=>b.gap-a.gap);
     return(
-      <div style={{minHeight:"100vh",background:"#0f172a",padding:"24px 20px 60px",fontFamily:"system-ui,sans-serif",color:"#f1f5f9"}}>
+      <div style={{minHeight:"100vh",background:"#0f172a",padding:"24px 20px 60px",fontFamily:"system-ui,sans-serif",color:T.primary}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:22}}>
-            <p style={{fontSize:11,color:"#475569",letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>{name?name+"'s":"Your"} Coaching Beliefs Profile</p>
+            <p style={{fontSize:11,color:T.muted,letterSpacing:"2px",textTransform:"uppercase",marginBottom:6}}>{name?name+"'s":"Your"} Coaching Beliefs Profile</p>
             <h2 style={{fontSize:20,fontWeight:800,color:bP.color,margin:"0 0 2px"}}>{bP.label}</h2>
-            <p style={{fontSize:12,color:"#475569",margin:0}}>Dominant belief orientation</p>
+            <p style={{fontSize:12,color:T.secondary,margin:0}}>Dominant belief orientation</p>
           </div>
           <div style={{background:"#1e293b",borderRadius:20,padding:"20px 12px 14px",marginBottom:16,boxShadow:"0 4px 28px rgba(0,0,0,0.5)"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-              <div style={{textAlign:"center"}}><p style={{fontSize:10,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 6px"}}>How I See It</p><Petal scores={bN} dominant={bDom} size={200}/><p style={{fontSize:11,color:bP.color,fontWeight:700,margin:"4px 0 0"}}>{bP.label}</p></div>
-              <div style={{textAlign:"center"}}><p style={{fontSize:10,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 6px"}}>How I Do It</p><Petal scores={pN} dominant={pDom} size={200}/><p style={{fontSize:11,color:pP.color,fontWeight:700,margin:"4px 0 0"}}>{pP.label}</p></div>
+              <div style={{textAlign:"center"}}><p style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 6px"}}>How I See It</p><Petal scores={bN} dominant={bDom} size={200}/><p style={{fontSize:11,color:bP.color,fontWeight:700,margin:"4px 0 0"}}>{bP.label}</p></div>
+              <div style={{textAlign:"center"}}><p style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 6px"}}>How I Do It</p><Petal scores={pN} dominant={pDom} size={200}/><p style={{fontSize:11,color:pP.color,fontWeight:700,margin:"4px 0 0"}}>{pP.label}</p></div>
             </div>
             <div style={{background:"#0f172a",borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
               {aligned?<span style={{fontSize:12,color:"#4ade80"}}>Beliefs and practice are aligned</span>:<span style={{fontSize:12,color:"#f59e0b"}}>A beliefs-practice gap has been detected</span>}
@@ -423,38 +647,45 @@ export default function App(){
           </div>
           <div style={{background:"#1e293b",borderRadius:16,padding:20,marginBottom:14,borderLeft:"4px solid "+(aligned?"#22c55e":"#f59e0b")}}>
             <p style={{fontSize:11,fontWeight:700,color:aligned?"#22c55e":"#f59e0b",textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 10px"}}>{aligned?"Profile Coherence":"Beliefs-Practice Gap"}</p>
-            <p style={{color:"#cbd5e1",fontSize:13,lineHeight:1.8,margin:0}}>{interp}</p>
+            <p style={{color:T.body,fontSize:13,lineHeight:1.8,margin:0}}>{interp}</p>
           </div>
           <div style={{background:"#1e293b",borderRadius:16,padding:20,marginBottom:14}}>
-            <p style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 14px"}}>Belief vs Practice by Orientation</p>
+            <p style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",margin:"0 0 14px"}}>Belief vs Practice by Orientation</p>
             {gd.map(item=>(
               <div key={item.k} style={{marginBottom:14}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:12,color:item.color,fontWeight:600}}>{item.label}</span><span style={{fontSize:10,color:item.gap>0.15?"#f59e0b":"#475569",fontWeight:item.gap>0.15?700:400}}>{item.gap>0.15?"Gap: "+Math.round(item.gap*100)+"pts":"Aligned"}</span></div>
-                <div style={{marginBottom:3}}><div style={{fontSize:9,color:"#475569",marginBottom:2}}>See it</div><div style={{background:"#0f172a",borderRadius:4,height:8}}><div style={{background:item.color,borderRadius:4,height:8,width:item.b*100+"%",opacity:0.9}}/></div></div>
-                <div><div style={{fontSize:9,color:"#475569",marginBottom:2}}>Do it</div><div style={{background:"#0f172a",borderRadius:4,height:8}}><div style={{background:item.color,borderRadius:4,height:8,width:item.p*100+"%",opacity:0.5}}/></div></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:12,color:item.color,fontWeight:600}}>{item.label}</span><span style={{fontSize:10,color:item.gap>0.15?"#f59e0b":T.muted,fontWeight:item.gap>0.15?700:400}}>{item.gap>0.15?"Gap: "+Math.round(item.gap*100)+"pts":"Aligned"}</span></div>
+                <div style={{marginBottom:3}}><div style={{fontSize:9,color:T.secondary,marginBottom:2}}>See it</div><div style={{background:"#0f172a",borderRadius:4,height:8}}><div style={{background:item.color,borderRadius:4,height:8,width:item.b*100+"%",opacity:0.9}}/></div></div>
+                <div><div style={{fontSize:9,color:T.secondary,marginBottom:2}}>Do it</div><div style={{background:"#0f172a",borderRadius:4,height:8}}><div style={{background:item.color,borderRadius:4,height:8,width:item.p*100+"%",opacity:0.5}}/></div></div>
               </div>
             ))}
           </div>
-          <button onClick={openReport} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:14,fontWeight:800,cursor:"pointer",marginBottom:10}}>Open My Report</button>
-          <button onClick={()=>{setStep(0);setAns({});}} style={{width:"100%",background:"#1e293b",color:"#64748b",border:"1px solid #334155",borderRadius:10,padding:"12px",fontSize:13,cursor:"pointer"}}>Start Again</button>
+          <button onClick={openReport} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:14,fontWeight:800,cursor:"pointer",marginBottom:10}}>Open My Report →</button>
+          <button onClick={()=>{setStep(0);setAns({});setPlain(false);}} style={{width:"100%",background:"#1e293b",color:T.body,border:"1px solid #334155",borderRadius:10,padding:"12px",fontSize:13,cursor:"pointer"}}>Start Again</button>
         </div>
       </div>
     );
   }
 
+  // ── Question screens ─────────────────────────────────────────────────────
   return(
-    <div style={{minHeight:"100vh",background:"#0f172a",padding:"24px 20px",fontFamily:"system-ui,sans-serif",color:"#f1f5f9"}}>
+    <div style={{minHeight:"100vh",background:"#0f172a",padding:"24px 20px",fontFamily:"system-ui,sans-serif",color:T.primary}}>
       <div style={{maxWidth:620,margin:"0 auto"}}>
         <div style={{marginBottom:18}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#64748b",marginBottom:5}}><span>{"Section "+currentQ.s+" / Q"+qNum+" of 10"}</span><span style={{color:"#475569"}}>{currentQ.topic}</span></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.secondary,marginBottom:5}}>
+            <span>{"Section "+currentQ.s+" / Q"+qNum+" of 10"}</span>
+            <span style={{color:T.muted}}>{currentQ.topic}</span>
+          </div>
           <div style={{background:"#1e293b",borderRadius:6,height:4}}><div style={{background:"linear-gradient(90deg,#a8e063,#7ab83a)",borderRadius:6,height:4,width:pct+"%",transition:"width 0.3s"}}/></div>
-          <div style={{fontSize:10,color:"#334155",marginTop:4}}>{currentQ.s===1?"How I Think About Skill Learning":"How I Coach in Practice"}</div>
+          <div style={{fontSize:10,color:T.muted,marginTop:4}}>{currentQ.s===1?"How I Think About Skill Learning":"How I Coach in Practice"}</div>
         </div>
+
+        <PlainToggle plain={plain} onToggle={()=>setPlain(p=>!p)} />
+
         <div style={{background:"#1e293b",borderRadius:14,padding:"14px 18px",marginBottom:18}}>
-          <p style={{fontSize:14,fontWeight:600,color:"#f1f5f9",margin:"0 0 4px",lineHeight:1.5}}>{currentQ.topic}</p>
-          <p style={{fontSize:12,color:"#64748b",margin:0}}>{currentQ.stem}</p>
+          <p style={{fontSize:14,fontWeight:600,color:T.primary,margin:"0 0 4px",lineHeight:1.5}}>{currentQ.topic}</p>
+          <p style={{fontSize:12,color:T.secondary,margin:0}}>{currentQ.stem}</p>
         </div>
-        <SpectrumQuestion key={currentQ.id} question={currentQ} onComplete={handleComplete} isLast={currentQ.id===20}/>
+        <SpectrumQuestion key={currentQ.id+"-"+plain} question={currentQ} onComplete={handleComplete} isLast={currentQ.id===20} plain={plain}/>
       </div>
     </div>
   );
