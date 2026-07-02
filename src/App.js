@@ -1,5 +1,35 @@
 import { useState, useRef, useEffect } from "react";
 
+// ── Supabase config ───────────────────────────────────────────────────────
+const SUPABASE_URL = "https://xskosgjaaltbdkgfjntw.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhza29zZ2phYWx0YmRrZ2ZqbnR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NjgxMTEsImV4cCI6MjA5ODU0NDExMX0.37pNPgW1U6VjO3va-w86n-T93AVnhuAVz6VDmraEoSc";
+
+async function saveSubmission(teamCode, coachName, results) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/submissions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Prefer": "return=minimal"
+    },
+    body: JSON.stringify({ team_code: teamCode.toUpperCase().trim(), coach_name: coachName||"Anonymous", results })
+  });
+  return res.ok;
+}
+
+async function fetchTeamSubmissions(teamCode) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/submissions?team_code=eq.${encodeURIComponent(teamCode.toUpperCase().trim())}&select=*`, {
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`
+    }
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+
 const NEUTRAL = "#64748b";
 const LETTERS = ["A","B","C","D"];
 const KEYS = ["ecological","gamesbased","cognitive","behaviourist"];
@@ -460,11 +490,219 @@ function Petal({scores,dominant,size=220}){
   );
 }
 
+
+// ── Team profile generator ────────────────────────────────────────────────
+function computeTeamResults(submissions) {
+  const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+  const allBR = {ecological:[],gamesbased:[],cognitive:[],behaviourist:[]};
+  const allPR = {ecological:[],gamesbased:[],cognitive:[],behaviourist:[]};
+  submissions.forEach(s => {
+    const r = s.results;
+    KEYS.forEach(k => {
+      allBR[k].push(r.bR[k]||0);
+      allPR[k].push(r.pR[k]||0);
+    });
+  });
+  const bR = {}, pR = {};
+  KEYS.forEach(k => { bR[k]=avg(allBR[k]); pR[k]=avg(allPR[k]); });
+  const norm = obj => { const m=Math.max(...Object.values(obj),0.001); return Object.fromEntries(Object.entries(obj).map(([k,v])=>[k,v/m])); };
+  const bN=norm(bR), pN=norm(pR);
+  const bDom=Object.entries(bN).sort((a,b)=>b[1]-a[1])[0][0];
+  const pDom=Object.entries(pN).sort((a,b)=>b[1]-a[1])[0][0];
+  // Spread analysis - standard deviation per orientation
+  const spread = {};
+  KEYS.forEach(k => {
+    const vals = submissions.map(s=>s.results.bR[k]||0);
+    const mean = avg(vals);
+    const sd = Math.sqrt(vals.map(v=>(v-mean)**2).reduce((a,b)=>a+b,0)/vals.length);
+    spread[k] = sd;
+  });
+  // Individual dominant beliefs for mismatch analysis
+  const individualBDoms = submissions.map(s => {
+    const bN2 = norm(s.results.bR);
+    return Object.entries(bN2).sort((a,b)=>b[1]-a[1])[0][0];
+  });
+  const individualPDoms = submissions.map(s => {
+    const pN2 = norm(s.results.pR);
+    return Object.entries(pN2).sort((a,b)=>b[1]-a[1])[0][0];
+  });
+  const beliefSpread = new Set(individualBDoms).size;
+  const practiceSpread = new Set(individualPDoms).size;
+  return { bR, pR, bN, pN, bDom, pDom, spread, beliefSpread, practiceSpread, individualBDoms, individualPDoms, n: submissions.length };
+}
+
+function makeTeamReport(data) {
+  const { teamCode, teamName, submissions, tr } = data;
+  const { bR, pR, bN, pN, bDom, pDom, spread, beliefSpread, practiceSpread, individualBDoms, individualPDoms, n } = tr;
+  const C={ecological:"#22c55e",gamesbased:"#f59e0b",cognitive:"#3b82f6",behaviourist:"#ef4444"};
+  const LB={ecological:"Ecological / CLA",gamesbased:"Games-based",cognitive:"Cognitive",behaviourist:"Behaviourist"};
+  const KS=["ecological","gamesbased","cognitive","behaviourist"];
+  const date=new Date().toLocaleDateString("en-AU",{day:"numeric",month:"long",year:"numeric"});
+  const aligned = bDom===pDom;
+
+  // Count how many coaches dominant in each orientation
+  const beliefCounts = {};
+  const practiceCounts = {};
+  KS.forEach(k=>{ beliefCounts[k]=0; practiceCounts[k]=0; });
+  individualBDoms.forEach(d=>beliefCounts[d]++);
+  individualPDoms.forEach(d=>practiceCounts[d]++);
+
+  // Coherence score - lower spread = more coherent
+  const avgSpread = Object.values(spread).reduce((a,b)=>a+b,0)/4;
+  const coherenceLevel = avgSpread < 0.08 ? "high" : avgSpread < 0.16 ? "moderate" : "low";
+  const coherenceColor = coherenceLevel==="high"?"#22c55e":coherenceLevel==="moderate"?"#f59e0b":"#ef4444";
+
+  // Mismatch narrative
+  const mismatches = submissions.filter(s=>{
+    const bN2={}; const pN2={};
+    KEYS.forEach(k=>{bN2[k]=s.results.bR[k]||0; pN2[k]=s.results.pR[k]||0;});
+    const bm=Object.entries(bN2).sort((a,b)=>b[1]-a[1])[0][0];
+    const pm=Object.entries(pN2).sort((a,b)=>b[1]-a[1])[0][0];
+    return bm!==pm;
+  }).length;
+
+  const bSVG=makePetalSVG(bN,bDom,210);
+  const pSVG=makePetalSVG(pN,pDom,210);
+
+  // Narrative based on coherence
+  let coherenceNarrative = "";
+  if(coherenceLevel==="high") {
+    coherenceNarrative = `This coaching group shows strong alignment in how they think about skill learning. Coaches share a common theoretical orientation, which means athletes are likely receiving consistent messages, experiencing consistent practice design, and being held to consistent standards across all staff interactions. This is a significant organisational strength.`;
+  } else if(coherenceLevel==="moderate") {
+    coherenceNarrative = `This coaching group shows moderate alignment. There is a shared general direction, but meaningful differences exist in how individual coaches think about skill learning. Athletes may be receiving somewhat different messages depending on which coach they are working with. Clarifying a shared methodology would strengthen the collective impact of this group.`;
+  } else {
+    coherenceNarrative = `This coaching group shows significant fragmentation in beliefs about skill learning. Coaches hold substantially different views about what a skill is, how learning happens, and what good practice looks like. This is not a sign of healthy diversity — it means athletes are likely receiving inconsistent messages, experiencing different practice philosophies, and being coached toward different standards depending on who they are with. This is a performance risk that warrants direct attention from the head coach or performance director.`;
+  }
+
+  // Belief spread narrative
+  let spreadNarrative = "";
+  if(beliefSpread===1) {
+    spreadNarrative = `All ${n} coaches in this group share the same dominant belief orientation — ${LB[bDom]}. This level of theoretical coherence is unusual and reflects either a strongly shared coaching culture or a group that has invested seriously in developing a common philosophy.`;
+  } else if(beliefSpread===2) {
+    const dominated = KS.filter(k=>beliefCounts[k]>0).map(k=>`${beliefCounts[k]} coach${beliefCounts[k]>1?'es':''} lean ${LB[k]}`).join(' and ');
+    spreadNarrative = `Across the group, beliefs are spread across two orientations: ${dominated}. This represents a meaningful philosophical divide that is worth surfacing and discussing openly as a staff group.`;
+  } else {
+    spreadNarrative = `Beliefs across this group span ${beliefSpread} different orientations. This level of fragmentation means there is currently no shared theoretical foundation for how this coaching group thinks about skill learning and athlete development.`;
+  }
+
+  // Individual mismatch narrative
+  let mismatchNarrative = mismatches > 0
+    ? `${mismatches} of the ${n} coaches in this group show a gap between their beliefs and their practice — meaning what they believe about learning is not fully reflected in how they coach. This is common, but when it occurs across multiple staff members it amplifies the inconsistency athletes experience.`
+    : `All coaches in this group show alignment between their beliefs and their practice — what they believe about learning is broadly reflected in how they coach.`;
+
+  function sbar(k,v){return `<div style='margin-bottom:10px'><div style='display:flex;justify-content:space-between;margin-bottom:3px'><span style='font-size:11px;font-weight:700;color:${C[k]}'>${LB[k]}</span><span style='font-size:10px;color:#cbd5e1'>${Math.round(v*100)}%</span></div><div style='background:#111;border-radius:4px;height:7px'><div style='background:${C[k]};border-radius:4px;height:7px;width:${Math.round(v*100)}%;opacity:0.9'></div></div></div>`;}
+
+  function spreadBar(k,v,b){
+    const spreadPct = Math.round(v*100);
+    return `<div style='margin-bottom:14px'>
+      <div style='display:flex;justify-content:space-between;margin-bottom:4px'>
+        <span style='font-size:12px;font-weight:700;color:${C[k]}'>${LB[k]}</span>
+        <span style='font-size:10px;color:${spreadPct>15?"#ef4444":spreadPct>8?"#f59e0b":"#22c55e"};font-weight:700'>${spreadPct>15?"High variation":spreadPct>8?"Some variation":"Consistent"}</span>
+      </div>
+      <div style='font-size:9px;color:#cbd5e1;margin-bottom:2px'>Group average</div>
+      <div style='background:#111;border-radius:4px;height:7px;margin-bottom:3px'><div style='background:${C[k]};border-radius:4px;height:7px;width:${Math.round(b*100)}%;opacity:0.9'></div></div>
+      <div style='font-size:9px;color:#94a3b8;margin-bottom:2px'>Variation within group</div>
+      <div style='background:#111;border-radius:4px;height:5px'><div style='background:${C[k]};border-radius:4px;height:5px;width:${Math.min(spreadPct*3,100)}%;opacity:0.4'></div></div>
+    </div>`;
+  }
+
+  const css="*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#e2e8f0;line-height:1.65}.wrap{max-width:820px;margin:0 auto;padding:32px 32px 60px}.cover{background:#1a1a1a;border-radius:16px;padding:44px 40px;margin-bottom:36px;position:relative;overflow:hidden}.ct{position:absolute;top:0;left:0;right:0;height:4px;background:#a8e063}.sh{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #222}.sn{width:28px;height:28px;border-radius:8px;background:#a8e063;color:#0a0a0a;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}.st{font-size:17px;font-weight:800;color:#fff}.ss{font-size:12px;color:#cbd5e1}.sec{margin-bottom:32px}.card{background:#1a1a1a;border-radius:12px;padding:18px 22px;margin-bottom:12px}.cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#a8e063;margin-bottom:8px}.card p{font-size:13px;color:#e2e8f0;line-height:1.75}.pr{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}.pb{background:#1a1a1a;border-radius:14px;padding:18px 12px;text-align:center}.pl{font-size:10px;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}.pn{font-size:12px;font-weight:700;margin-top:8px}.sr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}.dv{height:1px;background:#222;margin:28px 0}.ql{list-style:none}.ql li{padding:13px 16px;background:#1a1a1a;border-radius:10px;margin-bottom:10px;font-size:13px;color:#e2e8f0;line-height:1.65;border-left:3px solid #a8e063}.ft{margin-top:44px;padding-top:22px;border-top:1px solid #222;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}.ft p{font-size:11px;color:#94a3b8}.gc{color:#a8e063;font-weight:700}";
+
+  let h = `<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'/><title>Team Coaching Beliefs Profile${teamName?" - "+teamName:""}</title><style>${css}</style></head><body><div class='wrap'>`;
+
+  // Cover
+  h+=`<div class='cover'><div class='ct'></div>
+  <div style='display:flex;align-items:center;gap:14px;margin-bottom:28px'>
+    <svg xmlns='http://www.w3.org/2000/svg' width='46' height='46' viewBox='0 0 100 100'><text x='4' y='70' font-family='Georgia,serif' font-style='italic' font-weight='900' font-size='72' fill='white'>cc</text><line x1='6' y1='84' x2='70' y2='84' stroke='#a8e063' stroke-width='6' stroke-linecap='round'/></svg>
+    <div><div style='font-size:10px;font-weight:800;color:#a8e063;letter-spacing:3px;text-transform:uppercase'>Constraints</div><div style='font-size:10px;font-weight:800;color:#fff;letter-spacing:3px;text-transform:uppercase'>Collective</div></div>
+  </div>
+  <div style='font-size:26px;font-weight:900;color:#fff;margin-bottom:4px'>Team Coaching Beliefs Profile</div>
+  <div style='font-size:12px;color:#a8e063;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px'>Group Profile</div>
+  <div style='display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px'>
+    <div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Team</div><div style='font-size:15px;font-weight:700;color:#fff'>${teamName||teamCode}</div></div>
+    <div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Date</div><div style='font-size:15px;font-weight:700;color:#fff'>${date}</div></div>
+    <div><div style='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#cbd5e1;margin-bottom:3px'>Coaches profiled</div><div style='font-size:15px;font-weight:700;color:#fff'>${n}</div></div>
+  </div>
+  <div style='background:#1e293b;border-radius:10px;padding:12px 16px;border-left:3px solid #a8e063'>
+    <p style='font-size:13px;color:#e2e8f0;line-height:1.7;margin:0'>This profile explored the relationship between this group's collective beliefs about skill learning and how those beliefs show up in their coaching practice.</p>
+  </div></div>`;
+
+  // Section 1 - Coherence overview
+  h+=`<div class='sec'><div class='sh'><div class='sn'>1</div><div><div class='st'>Group Coherence</div><div class='ss'>How aligned is this coaching group in their beliefs and practice?</div></div></div>`;
+  h+=`<div style='background:#1a1a1a;border-radius:12px;padding:20px;margin-bottom:12px;border-left:4px solid ${coherenceColor}'>
+    <div style='display:flex;align-items:center;gap:10px;margin-bottom:10px'>
+      <span style='font-size:14px;font-weight:800;color:${coherenceColor}'>Coherence: ${coherenceLevel.charAt(0).toUpperCase()+coherenceLevel.slice(1)}</span>
+      <span style='font-size:11px;color:#94a3b8'>${n} coaches profiled</span>
+    </div>
+    <p style='font-size:13px;color:#e2e8f0;line-height:1.75;margin:0'>${coherenceNarrative}</p>
+  </div>`;
+  h+=`<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px'>
+    <div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#a8e063;margin-bottom:10px'>Belief Spread Across Orientations</div>
+    <p style='font-size:13px;color:#e2e8f0;line-height:1.75;margin-bottom:14px'>${spreadNarrative}</p>
+    <div style='display:grid;grid-template-columns:1fr 1fr;gap:8px'>
+      ${KS.filter(k=>beliefCounts[k]>0).map(k=>`<div style='background:#0f172a;border-radius:8px;padding:10px 12px;border-left:3px solid ${C[k]}'><div style='font-size:11px;font-weight:700;color:${C[k]};margin-bottom:2px'>${LB[k]}</div><div style='font-size:13px;color:#f8fafc;font-weight:800'>${beliefCounts[k]} coach${beliefCounts[k]>1?'es':''}</div></div>`).join('')}
+    </div>
+  </div>`;
+  h+=`<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px'>
+    <div style='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#a8e063;margin-bottom:10px'>Individual Beliefs-Practice Gaps</div>
+    <p style='font-size:13px;color:#e2e8f0;line-height:1.75;margin:0'>${mismatchNarrative}</p>
+  </div></div><div class='dv'></div>`;
+
+  // Section 2 - Team petal diagrams
+  h+=`<div class='sec'><div class='sh'><div class='sn'>2</div><div><div class='st'>Group Belief and Practice Profile</div><div class='ss'>The collective orientation of this coaching group</div></div></div>`;
+  h+=`<p style='font-size:13px;color:#cbd5e1;line-height:1.75;margin-bottom:18px'>The diagrams below show the aggregate shape of this group's beliefs and practice. The larger each petal, the more strongly the group as a whole scored toward that orientation.</p>`;
+  h+=`<div class='pr'><div class='pb'><div class='pl'>How We See It — Group Beliefs</div>${bSVG}<div class='pn' style='color:${C[bDom]}'>${LB[bDom]}</div></div><div class='pb'><div class='pl'>How We Do It — Group Practice</div>${pSVG}<div class='pn' style='color:${C[pDom]}'>${LB[pDom]}</div></div></div>`;
+  h+=`<div class='sr'><div class='card'><div class='cl'>Group Belief Scores</div>${KS.map(k=>sbar(k,bR[k]||0)).join('')}</div><div class='card'><div class='cl'>Group Practice Scores</div>${KS.map(k=>sbar(k,pR[k]||0)).join('')}</div></div></div><div class='dv'></div>`;
+
+  // Section 3 - Variation within group
+  h+=`<div class='sec'><div class='sh'><div class='sn'>3</div><div><div class='st'>Variation Within the Group</div><div class='ss'>Where coaches are consistent and where views diverge</div></div></div>`;
+  h+=`<p style='font-size:13px;color:#cbd5e1;line-height:1.75;margin-bottom:18px'>The bars below show the group average for each orientation and the degree of variation within the group. High variation means coaches hold meaningfully different views on that dimension.</p>`;
+  h+=KS.map(k=>spreadBar(k,spread[k],bR[k])).join('');
+  h+=`</div><div class='dv'></div>`;
+
+  // Section 4 - What this means
+  h+=`<div class='sec'><div class='sh'><div class='sn'>4</div><div><div class='st'>What This Means for Athlete Development</div><div class='ss'>The practical implications of this group's profile</div></div></div>`;
+  h+=`<div class='card'><div class='cl'>The core issue</div><p>When a coaching group holds different beliefs about how athletes learn, those differences show up every day — in how practice is designed, what feedback is given, what counts as good performance, and what coaches say to athletes in difficult moments. Athletes do not experience a coaching philosophy. They experience individual coaches, and they notice when the messages are inconsistent.</p></div>`;
+  
+  if(coherenceLevel==="low") {
+    h+=`<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid #ef4444'><div style='font-size:14px;font-weight:800;color:#ef4444;margin-bottom:6px'>Priority: Establish a Shared Methodology</div><div style='font-size:13px;color:#e2e8f0;line-height:1.7'>The degree of fragmentation in this group's beliefs makes establishing a shared department methodology an urgent priority. This does not mean eliminating individual coaching styles — it means agreeing on the underlying principles about how athletes learn that will guide all coaching decisions across the group.</div></div>`;
+  } else if(coherenceLevel==="moderate") {
+    h+=`<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid #f59e0b'><div style='font-size:14px;font-weight:800;color:#f59e0b;margin-bottom:6px'>Opportunity: Clarify and Consolidate</div><div style='font-size:13px;color:#e2e8f0;line-height:1.7'>This group has a shared general direction but meaningful individual differences remain. The opportunity is to surface those differences through structured professional conversations and work toward a more explicit shared methodology that guides practice design and athlete interaction across the department.</div></div>`;
+  } else {
+    h+=`<div style='background:#1a1a1a;border-radius:12px;padding:18px 20px;margin-bottom:12px;border-left:3px solid #22c55e'><div style='font-size:14px;font-weight:800;color:#22c55e;margin-bottom:6px'>Strength: Build on Shared Foundation</div><div style='font-size:13px;color:#e2e8f0;line-height:1.7'>This group's high coherence is a significant organisational asset. The next step is making this shared philosophy explicit — articulating it clearly so it can guide recruitment, induction, practice design standards, and athlete communication across the department.</div></div>`;
+  }
+  h+=`</div><div class='dv'></div>`;
+
+  // Section 5 - Discussion questions for performance director
+  const teamDqs = [
+    "Looking at this profile, does the group's dominant orientation reflect a deliberate decision or has it emerged without explicit discussion?",
+    beliefSpread>1 ? `This group spans ${beliefSpread} different belief orientations. Has this diversity ever been named and discussed openly, or has it operated below the surface?` : "This group shows strong theoretical alignment. Is this the result of deliberate culture-building, and how is it maintained through recruitment and induction?",
+    "If you asked each coach to describe what a skill is and how athletes learn, how different would the answers be? Does this profile suggest those differences are larger or smaller than you expected?",
+    "What messages are athletes currently receiving from different members of this coaching group about what good performance looks like and how to achieve it? Are those messages consistent?",
+    coherenceLevel!=="high" ? "What would it take for this group to develop and commit to a shared department methodology — not a uniform coaching style, but a common set of beliefs about learning that guides all coaching decisions?" : "How is the shared methodology of this group communicated to new staff, athletes, and parents? Is it explicit enough to survive staff changes?",
+    "Which coach in this group is furthest from the group average? What does that mean for the athletes who work primarily with that coach?",
+    "If you repeated this profiling process in 12 months, what would you want to be different about this group's profile?",
+  ];
+  h+=`<div class='sec'><div class='sh'><div class='sn'>5</div><div><div class='st'>Discussion Questions for the Performance Director</div><div class='ss'>Use these to open a structured conversation with your coaching group</div></div></div>`;
+  h+=`<ul class='ql'>${teamDqs.map(q=>`<li>${q}</li>`).join('')}</ul></div>`;
+
+  h+=`<div class='ft'><p>Generated by the <span class='gc'>Constraints Collective</span> Coaching Beliefs Profiler</p><p>${date} · Team code: ${teamCode}</p></div></div></body></html>`;
+  return h;
+}
+
 export default function App(){
   const [step,setStep]=useState(0);
   const [name,setName]=useState("");
   const [ans,setAns]=useState({});
   const [reportHTML,setReportHTML]=useState(null);
+  const [teamCode,setTeamCode]=useState("");
+  const [teamName,setTeamName]=useState("");
+  const [teamSubmitting,setTeamSubmitting]=useState(false);
+  const [teamSubmitted,setTeamSubmitted]=useState(false);
+  const [teamError,setTeamError]=useState("");
+  const [teamProfileHTML,setTeamProfileHTML]=useState(null);
+  const [teamLoading,setTeamLoading]=useState(false);
+  const [viewMode,setViewMode]=useState("home"); // "home" | "team-admin"
 
   const isBreak=step===10.5,isResults=step===21;
   const currentQ=(!isBreak&&!isResults&&step>=1&&step<=20)?Q[step-1]:null;
@@ -496,8 +734,43 @@ export default function App(){
     setReportHTML(makeReport({name,bRaw:r.bR,pRaw:r.pR,bNorm:r.bN,pNorm:r.pN,bDom:r.bDom,pDom:r.pDom,interp:r.interp}));
   };
 
+  const submitToTeam=async()=>{
+    if(!teamCode.trim()){setTeamError("Please enter a team code.");return;}
+    setTeamSubmitting(true);setTeamError("");
+    const r=computeResults();
+    const ok=await saveSubmission(teamCode,name,{bR:r.bR,pR:r.pR,bN:r.bN,pN:r.pN,bDom:r.bDom,pDom:r.pDom});
+    setTeamSubmitting(false);
+    if(ok){setTeamSubmitted(true);}
+    else{setTeamError("Could not save — please check your team code and try again.");}
+  };
+
+  const generateTeamProfile=async()=>{
+    if(!teamCode.trim()){setTeamError("Please enter a team code.");return;}
+    setTeamLoading(true);setTeamError("");
+    const subs=await fetchTeamSubmissions(teamCode);
+    setTeamLoading(false);
+    if(!subs||subs.length===0){setTeamError("No submissions found for that team code.");return;}
+    const tr=computeTeamResults(subs);
+    setTeamProfileHTML(makeTeamReport({teamCode:teamCode.toUpperCase(),teamName,submissions:subs,tr}));
+  };
+
   const pct=(Object.keys(ans).length/20)*100;
   const qNum=currentQ?(currentQ.s===1?currentQ.id:currentQ.id-10):0;
+
+  // ── Team profile view ────────────────────────────────────────────────────
+  if(teamProfileHTML) return(
+    <div>
+      <div style={{background:"#1e293b",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+        <div style={{fontSize:13,color:"#a8e063",fontFamily:"system-ui,sans-serif",fontWeight:600}}>
+          To save as PDF: <span style={{color:T.primary,fontWeight:400}}>press Cmd+P then choose Save as PDF</span>
+        </div>
+        <button onClick={()=>setTeamProfileHTML(null)} style={{background:"#a8e063",color:"#000",border:"none",borderRadius:6,padding:"7px 16px",fontSize:13,fontWeight:800,cursor:"pointer"}}>
+          ← Back
+        </button>
+      </div>
+      <div dangerouslySetInnerHTML={{__html:teamProfileHTML}}/>
+    </div>
+  );
 
   // ── Report view ─────────────────────────────────────────────────────────
   if(reportHTML) return(
@@ -511,6 +784,35 @@ export default function App(){
         </button>
       </div>
       <div dangerouslySetInnerHTML={{__html:reportHTML}}/>
+    </div>
+  );
+
+  // ── Team admin view ───────────────────────────────────────────────────────
+  if(viewMode==="team-admin") return(
+    <div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"system-ui,sans-serif"}}>
+      <div style={{maxWidth:480,width:"100%",color:T.primary}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:28}}>
+          <svg width="36" height="36" viewBox="0 0 100 100"><text x="4" y="70" fontFamily="Georgia,serif" fontStyle="italic" fontWeight="900" fontSize="72" fill="white">cc</text><line x1="6" y1="84" x2="70" y2="84" stroke="#a8e063" strokeWidth="6" strokeLinecap="round"/></svg>
+          <div style={{lineHeight:1.2}}><div style={{fontSize:9,fontWeight:800,color:"#a8e063",letterSpacing:"3px",textTransform:"uppercase"}}>Constraints</div><div style={{fontSize:9,fontWeight:800,color:T.primary,letterSpacing:"3px",textTransform:"uppercase"}}>Collective</div></div>
+        </div>
+        <h2 style={{fontSize:22,fontWeight:900,marginBottom:6,color:T.primary}}>Generate Team Profile</h2>
+        <p style={{fontSize:14,color:T.body,lineHeight:1.75,marginBottom:28}}>Enter the team code to pull all submissions and generate the group profile.</p>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",display:"block",marginBottom:6}}>Team Code</label>
+          <input value={teamCode} onChange={e=>setTeamCode(e.target.value)} placeholder="e.g. HAWKS2025" style={{width:"100%",background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"11px 16px",color:T.primary,fontSize:14,boxSizing:"border-box",outline:"none",textTransform:"uppercase"}}/>
+        </div>
+        <div style={{marginBottom:24}}>
+          <label style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"1px",display:"block",marginBottom:6}}>Team Name (optional)</label>
+          <input value={teamName} onChange={e=>setTeamName(e.target.value)} placeholder="e.g. Hawthorn Football Club" style={{width:"100%",background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"11px 16px",color:T.primary,fontSize:14,boxSizing:"border-box",outline:"none"}}/>
+        </div>
+        {teamError&&<div style={{background:"#ef444422",border:"1px solid #ef4444",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#ef4444",marginBottom:14}}>{teamError}</div>}
+        <button onClick={generateTeamProfile} disabled={teamLoading} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer",marginBottom:12,opacity:teamLoading?0.7:1}}>
+          {teamLoading?"Loading submissions…":"Generate Team Profile →"}
+        </button>
+        <button onClick={()=>setViewMode("home")} style={{width:"100%",background:"#1e293b",color:T.body,border:"1px solid #334155",borderRadius:10,padding:"12px",fontSize:13,cursor:"pointer"}}>
+          ← Back
+        </button>
+      </div>
     </div>
   );
 
@@ -530,7 +832,10 @@ export default function App(){
           <p style={{margin:0,color:T.body,fontSize:13,lineHeight:1.9}}><strong style={{color:T.primary}}>What to expect</strong><br/>A short introduction explaining why beliefs matter<br/>20 questions across two sections — about 10 minutes<br/>A personalised profile at the end</p>
         </div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name (optional)" style={{width:"100%",background:"#1e293b",border:"1px solid #334155",borderRadius:10,padding:"11px 16px",color:T.primary,fontSize:14,marginBottom:14,boxSizing:"border-box",outline:"none"}}/>
-        <button onClick={()=>setStep(0.5)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer"}}>Begin</button>
+        <button onClick={()=>setStep(0.5)} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"13px",fontSize:15,fontWeight:800,cursor:"pointer",marginBottom:12}}>Begin</button>
+        <button onClick={()=>setViewMode("team-admin")} style={{width:"100%",background:"transparent",color:T.faint,border:"none",fontSize:12,cursor:"pointer",padding:"6px"}}>
+          Team profile admin →
+        </button>
       </div>
     </div>
   );
@@ -589,7 +894,22 @@ export default function App(){
           <button onClick={openReport} style={{width:"100%",background:"linear-gradient(135deg,#a8e063,#7ab83a)",color:"#0a0a0a",border:"none",borderRadius:10,padding:"15px",fontSize:16,fontWeight:800,cursor:"pointer",marginBottom:12}}>
             Open My Profile →
           </button>
-          <button onClick={()=>{setStep(0);setAns({});}} style={{width:"100%",background:"#1e293b",color:T.body,border:"1px solid #334155",borderRadius:10,padding:"12px",fontSize:13,cursor:"pointer"}}>
+          {!teamSubmitted?(
+            <div style={{marginTop:20,borderTop:"1px solid #1e293b",paddingTop:20}}>
+              <p style={{fontSize:12,color:T.muted,marginBottom:10,textAlign:"left"}}>Adding your results to a team profile? Enter the team code below.</p>
+              <input value={teamCode} onChange={e=>setTeamCode(e.target.value)} placeholder="Team code (e.g. HAWKS2025)" style={{width:"100%",background:"#1e293b",border:"1px solid #334155",borderRadius:8,padding:"10px 14px",color:T.primary,fontSize:13,boxSizing:"border-box",outline:"none",marginBottom:8,textTransform:"uppercase"}}/>
+              {teamError&&<div style={{fontSize:12,color:"#ef4444",marginBottom:8}}>{teamError}</div>}
+              <button onClick={submitToTeam} disabled={teamSubmitting} style={{width:"100%",background:"#1e293b",color:"#a8e063",border:"1px solid #a8e06366",borderRadius:8,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",opacity:teamSubmitting?0.7:1}}>
+                {teamSubmitting?"Saving…":"Add to Team Profile →"}
+              </button>
+            </div>
+          ):(
+            <div style={{marginTop:20,background:"#22c55e11",border:"1px solid #22c55e44",borderRadius:10,padding:"12px 16px",textAlign:"left"}}>
+              <p style={{fontSize:13,color:"#4ade80",fontWeight:600}}>✓ Added to team {teamCode.toUpperCase()}</p>
+              <p style={{fontSize:12,color:T.secondary,marginTop:4}}>Your results have been saved to the team profile.</p>
+            </div>
+          )}
+          <button onClick={()=>{setStep(0);setAns({});setTeamCode("");setTeamSubmitted(false);}} style={{width:"100%",background:"#1e293b",color:T.body,border:"1px solid #334155",borderRadius:10,padding:"12px",fontSize:13,cursor:"pointer",marginTop:12}}>
             Start Again
           </button>
         </div>
