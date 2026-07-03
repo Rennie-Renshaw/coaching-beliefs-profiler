@@ -5,28 +5,52 @@ const SUPABASE_URL = "https://xskosgjaaltbdkgfjntw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhza29zZ2phYWx0YmRrZ2ZqbnR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NjgxMTEsImV4cCI6MjA5ODU0NDExMX0.37pNPgW1U6VjO3va-w86n-T93AVnhuAVz6VDmraEoSc";
 
 async function saveSubmission(teamCode, coachName, results) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/submissions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Prefer": "return=minimal"
-    },
-    body: JSON.stringify({ team_code: teamCode.toUpperCase().trim(), coach_name: coachName||"Anonymous", results })
-  });
-  return res.ok;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/submissions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Prefer": "return=representation"
+      },
+      body: JSON.stringify({ 
+        team_code: teamCode.toUpperCase().trim(), 
+        coach_name: coachName||"Anonymous", 
+        results: results 
+      })
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("Supabase insert error:", res.status, err);
+      return false;
+    }
+    return true;
+  } catch(e) {
+    console.error("Save error:", e);
+    return false;
+  }
 }
 
 async function fetchTeamSubmissions(teamCode) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/submissions?team_code=eq.${encodeURIComponent(teamCode.toUpperCase().trim())}&select=*`, {
-    headers: {
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/submissions?team_code=eq.${encodeURIComponent(teamCode.toUpperCase().trim())}&select=*`, {
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("Supabase fetch error:", res.status, err);
+      return [];
     }
-  });
-  if (!res.ok) return [];
-  return res.json();
+    return res.json();
+  } catch(e) {
+    console.error("Fetch error:", e);
+    return [];
+  }
 }
 
 
@@ -741,7 +765,7 @@ export default function App(){
     const ok=await saveSubmission(teamCode,name,{bR:r.bR,pR:r.pR,bN:r.bN,pN:r.pN,bDom:r.bDom,pDom:r.pDom});
     setTeamSubmitting(false);
     if(ok){setTeamSubmitted(true);}
-    else{setTeamError("Could not save — please check your team code and try again.");}
+    else{setTeamError("Could not save — please try again. If the problem persists, contact Ian.");}
   };
 
   const generateTeamProfile=async()=>{
